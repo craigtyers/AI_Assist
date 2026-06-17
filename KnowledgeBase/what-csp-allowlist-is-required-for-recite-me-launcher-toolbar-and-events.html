@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>What CSP allowlist is required for Recite Me launcher, toolbar, and events | Knowledge Base</title>
+  <style>
+    body { font-family: "IBM Plex Sans", "Segoe UI", sans-serif; margin: 0; background: #ecf1f5; color: #18222c; }
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 24px; }
+    .kb-head { background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%); border: 1px solid #d4deea; border-radius: 14px; padding: 18px; margin-bottom: 14px; }
+    .kicker { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #2b5e8c; font-weight: 700; }
+    .kb-head h1 { margin: 0; font-size: 30px; color: #173d5e; }
+    .kb-head h1 a { color: inherit; text-decoration: none; }
+    .kb-head h1 a:hover { text-decoration: underline; }
+    .kb-head p { margin: 8px 0 0; color: #4f6478; }
+    .card { background: #ffffff; border: 1px solid #d8dde4; border-radius: 14px; padding: 20px; box-shadow: 0 8px 20px rgba(17, 44, 73, 0.05); }
+    .title { margin: 0 0 10px; color: #123756; }
+    .meta { color: #5e6b77; font-size: 13px; margin-bottom: 14px; }
+    .q { padding: 12px; background: #f4f9ff; border: 1px solid #d6e4f3; border-radius: 10px; }
+    .a { margin-top: 16px; }
+    .a h2 { font-size: 22px; margin: 0 0 12px; color: #173d5e; }
+    .a h3 { font-size: 18px; margin-top: 24px; margin-bottom: 8px; color: #0d62a8; letter-spacing: 0.01em; }
+    .a p { line-height: 1.7; color: #1f2d3a; margin-top: 10px; }
+    .a ul, .a ol { margin-top: 8px; margin-bottom: 10px; }
+    .a li { margin-bottom: 7px; line-height: 1.65; }
+    .a pre {
+      background: #0f1720;
+      color: #f8fafc;
+      border: 1px solid #2b3744;
+      padding: 16px 18px;
+      border-radius: 10px;
+      overflow-x: auto;
+      margin-top: 12px;
+      margin-bottom: 12px;
+    }
+    .a pre code {
+      background: transparent;
+      border: 0;
+      padding: 0;
+      color: #f8fafc;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+    .a code {
+      background: #eef3f8;
+      border: 1px solid #dbe4ee;
+      border-radius: 6px;
+      padding: 1px 5px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 14px;
+      color: #1b2b3a;
+    }
+    .refs { margin-top: 22px; border-top: 1px solid #d9e3ee; padding-top: 14px; }
+    .refs h3 { margin: 0 0 8px; color: #305a7d; }
+    .refs a { color: #0b6bcb; text-decoration: none; }
+    .refs a:hover { text-decoration: underline; }
+    .footer-links { margin-top: 14px; display: flex; justify-content: flex-end; gap: 16px; flex-wrap: wrap; }
+    .footer-links a { color: #0b6bcb; text-decoration: none; font-weight: 700; }
+    .footer-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="kb-head">
+      <p class="kicker">Recite Me</p>
+      <h1><a href="/kb">Knowledge Base</a></h1>
+      <p>Practical guidance and implementation patterns.</p>
+    </header>
+    <div class="card">
+      <h2 class="title">What CSP allowlist is required for Recite Me launcher, toolbar, and events</h2>
+      <div class="meta">Created: 2026-06-16T15:14:48.085605+00:00</div>
+      <div class="q"><strong>Question:</strong> What CSP allowlist is required for Recite Me launcher, toolbar, and events?</div>
+      <div class="a">
+        <h2>Answer</h2>
+        <h3>Non-technical explanation</h3>
+<p>If your site uses a Content Security Policy (CSP), Recite Me will only work when Recite Me domains are explicitly allowed. At minimum, clients should whitelist <code>*.reciteme.com</code> so the launcher script, toolbar services, and events reporting can load and run.</p>
+<h3>Technical explanation</h3>
+<p>For CSP-restricted sites, add Recite Me domains for script loading, API/service calls, and telemetry.</p>
+<p>Required Recite Me endpoints:</p>
+<ul>
+<li>Launcher script: cdn.reciteme.com</li>
+<li>Toolbar/API (region-specific): api.reciteme.com, uswestapi.reciteme.com, auapi.reciteme.com</li>
+<li>Events/statistics: events.reciteme.com</li>
+</ul>
+<p>Recommended baseline policy fragment:</p>
+<pre><code>Content-Security-Policy:
+  script-src &#x27;self&#x27; https://cdn.reciteme.com https://*.reciteme.com;
+  connect-src &#x27;self&#x27; https://api.reciteme.com https://uswestapi.reciteme.com https://auapi.reciteme.com https://events.reciteme.com https://*.reciteme.com;
+</code></pre>
+<p>If your CSP is strict and explicit, list each hostname directly. If your policy allows controlled wildcards, <code>https://*.reciteme.com</code> can simplify rollout across regions and services.</p>
+<h3>Recommended next steps</h3>
+<ol>
+<li>Add the Recite Me hostnames to your CSP in your primary environment first (staging/UAT).</li>
+<li>Validate launcher load from cdn.reciteme.com.</li>
+<li>Confirm toolbar requests succeed against your assigned regional API hostname.</li>
+<li>Confirm event calls to events.reciteme.com are not blocked.</li>
+<li>Repeat validation in production after deployment.</li>
+</ol>
+<h3>What to verify</h3>
+<ul>
+<li>Browser console/network shows no CSP violations for reciteme.com domains.</li>
+<li>Launcher script request returns 200 from cdn.reciteme.com.</li>
+<li>Toolbar API requests succeed for your region endpoint.</li>
+<li>Events requests to events.reciteme.com are allowed (not blocked by CSP).</li>
+</ul>
+      </div>
+      <div class="refs">
+        <h3>References</h3>
+        <ul>
+          <li>No references captured.</li>
+        </ul>
+      </div>
+    </div>
+    <footer class="footer-links">
+      <a href="/kb">Back to index</a>
+      <a href="/kb/new">Create KB article</a>
+      <a href="/">Ask something new</a>
+    </footer>
+  </div>
+</body>
+</html>

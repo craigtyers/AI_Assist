@@ -1,0 +1,1043 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>nBERT</title>
+    <style>
+      :root {
+        --bg: #f1f3f5;
+        --panel: #ffffff;
+        --ink: #16202a;
+        --muted: #5e6b77;
+        --accent: #0b6bcb;
+        --border: #d8dde4;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+      }
+      .corner-link {
+        position: fixed;
+        right: 18px;
+        font-size: 15px;
+        font-weight: 600;
+        color: #5e6b77;
+        text-decoration: underline;
+        cursor: pointer;
+        z-index: 10;
+      }
+      .corner-top {
+        top: 14px;
+      }
+      .corner-bottom {
+        bottom: 14px;
+      }
+
+      .landing {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+      .landing-inner {
+        width: min(820px, 100%);
+        text-align: center;
+        transform: translateY(-12vh);
+      }
+      .landing h1 {
+        margin: 0;
+        font-size: clamp(42px, 8vw, 82px);
+        letter-spacing: 0.02em;
+      }
+      .subtitle {
+        margin: 6px 0 22px;
+        color: var(--muted);
+      }
+      .ask-label {
+        display: block;
+        margin: 0 0 8px;
+        font-size: 14px;
+        color: #445363;
+        text-align: left;
+      }
+      .landing-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .landing-input {
+        flex: 1;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 13px 14px;
+        font-size: 16px;
+      }
+      .landing-status {
+        margin-top: 10px;
+        min-height: 20px;
+        color: var(--muted);
+        font-size: 14px;
+        text-align: left;
+      }
+
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        background: var(--accent);
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .ask-btn {
+        min-width: 120px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 24px;
+        font-size: 16px;
+      }
+      .ask-btn:disabled {
+        opacity: 0.8;
+        cursor: not-allowed;
+      }
+      .ask-spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(255, 255, 255, 0.45);
+        border-top-color: #ffffff;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        display: none;
+      }
+      .ask-btn.loading .ask-spinner {
+        display: inline-block;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .response-wrap {
+        width: 100%;
+        margin: 24px 0;
+        padding: 0 24px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 20px;
+        box-shadow: 0 10px 24px rgba(22, 32, 42, 0.06);
+      }
+      .response-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 6px;
+      }
+      .response-title {
+        margin: 0;
+        font-size: 28px;
+      }
+      .response-title a {
+        color: inherit;
+        text-decoration: none;
+      }
+      .response-title a:hover {
+        text-decoration: underline;
+      }
+      .kb-inline-link {
+        color: #0b6bcb;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .kb-inline-link:hover {
+        text-decoration: underline;
+      }
+      .muted {
+        color: var(--muted);
+        margin: 0 0 12px;
+      }
+      textarea {
+        width: 100%;
+        min-height: 110px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+        font-size: 15px;
+        resize: vertical;
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        margin-top: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 14px;
+        user-select: none;
+      }
+      .toggle input {
+        width: 16px;
+        height: 16px;
+      }
+      .ask-right {
+        margin-left: auto;
+      }
+      .panel {
+        margin-top: 16px;
+        padding: 16px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: #fbfcfe;
+        white-space: pre-wrap;
+        line-height: 1.5;
+      }
+      .result-grid {
+        margin-top: 16px;
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 14px;
+      }
+      .result-main,
+      .result-side {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: #ffffff;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-width: 0;
+      }
+      .section {
+        border: 1px solid #d9e3ee;
+        border-radius: 12px;
+        background: #ffffff;
+        padding: 16px;
+        min-width: 0;
+      }
+      .section h3 {
+        margin: 0 0 10px;
+        font-size: 19px;
+        color: #0d62a8;
+        letter-spacing: 0.01em;
+      }
+      .section .body {
+        color: #1f2d3a;
+        line-height: 1.7;
+        min-width: 0;
+      }
+      .section .body p {
+        margin: 0 0 12px;
+      }
+      .section .body p:last-child {
+        margin-bottom: 0;
+      }
+      .section .body code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        background: #eef3f8;
+        border: 1px solid #dbe4ee;
+        border-radius: 6px;
+        padding: 1px 5px;
+        font-size: 0.92em;
+      }
+      .section .body pre {
+        margin: 12px 0;
+        padding: 16px 18px;
+        background: #0f1720;
+        color: #f8fafc;
+        border: 1px solid #2b3744;
+        border-radius: 10px;
+        overflow-x: auto;
+        max-width: 100%;
+      }
+      .section .body pre.language-html {
+        background: #0b1b2b;
+        border: 1px solid #2d7db8;
+        box-shadow: inset 0 0 0 1px rgba(45, 125, 184, 0.25);
+        position: relative;
+      }
+      .section .body pre.language-html::before {
+        content: "HTML";
+        position: absolute;
+        top: 6px;
+        right: 8px;
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #89c8f3;
+      }
+      .section .body pre code {
+        background: transparent;
+        border: 0;
+        color: #f8fafc;
+        padding: 0;
+        font-size: 15px;
+        line-height: 1.7;
+      }
+      .section .body ul,
+      .section .body ol {
+        margin: 8px 0 12px 18px;
+      }
+      .section .body li {
+        margin-bottom: 7px;
+        line-height: 1.65;
+      }
+      .section .body blockquote {
+        margin: 10px 0;
+        padding: 8px 12px;
+        border-left: 3px solid #cdd9e6;
+        background: #f6f9fc;
+      }
+      .refs-title {
+        margin: 0 0 8px;
+        font-size: 15px;
+        color: #305a7d;
+      }
+      .meta-card {
+        border: 1px solid #d9e3ee;
+        border-radius: 10px;
+        background: #f4f9ff;
+        padding: 12px 14px;
+      }
+      .meta-card h4 {
+        margin: 0 0 6px;
+        font-size: 13px;
+        color: #445363;
+      }
+      .meta-card p {
+        margin: 0;
+        font-size: 14px;
+        color: #1e2b38;
+      }
+      .feedback {
+        border: 1px solid #e3e8ef;
+        border-radius: 10px;
+        background: #ffffff;
+        padding: 10px 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .feedback span {
+        font-size: 13px;
+        color: #445363;
+        margin-right: 4px;
+      }
+      .feedback .actions {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .feedback button {
+        padding: 6px 10px;
+        font-size: 13px;
+      }
+      .feedback .yes {
+        background: #1e8e3e;
+      }
+      .feedback .no {
+        background: #c53d31;
+      }
+      .feedback .kb {
+        background: #2f6f9f;
+      }
+      .feedback .msg {
+        color: #5e6b77;
+        max-width: 520px;
+        text-align: left;
+      }
+      .sources li {
+        margin-bottom: 6px;
+      }
+      .sources a {
+        color: #0b6bcb;
+        text-decoration: none;
+      }
+      .sources a:hover {
+        text-decoration: underline;
+      }
+      .hidden {
+        display: none !important;
+      }
+      @media (max-width: 900px) {
+        .landing-inner {
+          transform: translateY(-8vh);
+        }
+        .result-grid {
+          grid-template-columns: 1fr;
+        }
+        .landing-row {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .ask-btn {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a id="kbCornerLink" class="corner-link corner-top" href="/kb" target="_blank" rel="noopener noreferrer">Knowledge Base</a>
+    <a class="corner-link corner-bottom" id="indexLink">Reindex repos</a>
+
+    <section id="landingView" class="landing">
+      <div class="landing-inner">
+        <h1 id="landingTitle">nBERT</h1>
+        <p id="landingSubtitle" class="subtitle">(non-Biological Expert Recite me Technician)</p>
+        <label class="ask-label" for="landingQuestion">Ask me</label>
+        <div class="landing-row">
+          <input
+            id="landingQuestion"
+            class="landing-input"
+            type="text"
+            placeholder="How do I add the toolbar to my website?"
+          />
+          <button id="landingAskBtn" class="ask-btn" type="button">
+            <span>Ask</span>
+            <span class="ask-spinner" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div id="landingStatus" class="landing-status"></div>
+      </div>
+    </section>
+
+    <section id="responseView" class="response-wrap hidden">
+      <div class="card">
+        <div class="response-head">
+          <h2 class="response-title"><a id="responseTitleLink" href="/">nBERT</a></h2>
+          <a class="kb-inline-link" href="/kb" target="_blank" rel="noopener noreferrer">Knowledge Base</a>
+        </div>
+        <p class="muted">Ask questions across <code>recite-api</code>, <code>recite-toolbar</code>, and <code>Recite.toolbar.launcher</code>.</p>
+
+        <textarea id="question" placeholder="How do I add the toolbar to my website?"></textarea>
+        <div class="row">
+          <label class="toggle" for="docsOnly">
+            <input id="docsOnly" type="checkbox" checked />
+            Docs only
+          </label>
+          <button id="askBtn" class="ask-btn ask-right" type="button">
+            <span>Ask</span>
+            <span class="ask-spinner" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <div id="status" class="panel">Ready.</div>
+        <div id="resultGrid" class="result-grid">
+          <div id="answer" class="result-main"></div>
+          <aside class="result-side">
+            <div class="meta-card">
+              <h4>Run Details</h4>
+              <p id="timingText">Timing will appear after a response.</p>
+            </div>
+            <h3 class="refs-title">References</h3>
+            <ul id="sources" class="sources"><li>...</li></ul>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <script>
+      const landingViewEl = document.getElementById("landingView");
+      const responseViewEl = document.getElementById("responseView");
+      const landingQuestionEl = document.getElementById("landingQuestion");
+      const landingAskBtnEl = document.getElementById("landingAskBtn");
+      const landingStatusEl = document.getElementById("landingStatus");
+      const askBtnEl = document.getElementById("askBtn");
+      const questionEl = document.getElementById("question");
+      const docsOnlyEl = document.getElementById("docsOnly");
+      const statusEl = document.getElementById("status");
+      const answerEl = document.getElementById("answer");
+      const sourcesEl = document.getElementById("sources");
+      const timingTextEl = document.getElementById("timingText");
+      const kbCornerLinkEl = document.getElementById("kbCornerLink");
+      const landingTitleEl = document.getElementById("landingTitle");
+      const landingSubtitleEl = document.getElementById("landingSubtitle");
+      const responseTitleLinkEl = document.getElementById("responseTitleLink");
+      let lastResponse = null;
+      let statusAnimTimer = null;
+
+      function normalizeSubtitle(lines) {
+        if (!Array.isArray(lines)) return "";
+        return lines
+          .map((line) => String(line || "").trim())
+          .filter((line) => line.length > 0)
+          .join(" \u00b7 ");
+      }
+
+      function applyBrandProfile(profile) {
+        const title = String(profile?.title || "").trim();
+        const subtitle = normalizeSubtitle(profile?.subtitle_lines);
+        if (title) {
+          document.title = title;
+          if (landingTitleEl) landingTitleEl.textContent = title;
+          if (responseTitleLinkEl) responseTitleLinkEl.textContent = title;
+        }
+        if (subtitle && landingSubtitleEl) {
+          landingSubtitleEl.textContent = subtitle;
+        }
+      }
+
+      async function loadRandomBrandProfile() {
+        try {
+          const res = await fetch("/brand_names.json", { cache: "no-store" });
+          if (!res.ok) return;
+          const data = await res.json();
+          const profiles = Array.isArray(data?.profiles) ? data.profiles : [];
+          if (!profiles.length) return;
+          const pick = profiles[Math.floor(Math.random() * profiles.length)];
+          applyBrandProfile(pick);
+        } catch {
+          // Keep default branding if config load fails.
+        }
+      }
+
+      function inResponseMode() {
+        return !responseViewEl.classList.contains("hidden");
+      }
+
+      function switchToResponseMode(question) {
+        landingViewEl.classList.add("hidden");
+        responseViewEl.classList.remove("hidden");
+        kbCornerLinkEl.classList.add("hidden");
+        if (question && !questionEl.value.trim()) {
+          questionEl.value = question;
+        }
+      }
+
+      function parseSections(answerText) {
+        const normalized = (answerText || "").replace(/\r\n/g, "\n");
+        const headingRe = /^###\s+(.+)\s*$/gm;
+        const hashMatches = [...normalized.matchAll(headingRe)].map((m) => ({
+          title: m[1].trim(),
+          index: m.index,
+          len: m[0].length,
+        }));
+
+        const boldMarkerRe =
+          /\*\*(Non-technical(?: explanation)?|Technical(?: explanation)?|Recommended(?: next)? steps|What to verify)\*\*/gi;
+        const boldMatches = [...normalized.matchAll(boldMarkerRe)].map((m) => ({
+          title: m[1].trim(),
+          index: m.index,
+          len: m[0].length,
+        }));
+
+        const matches = [...hashMatches, ...boldMatches].sort((a, b) => a.index - b.index);
+        if (!matches.length) {
+          return [{ title: "Answer", body: normalized.trim() || "(no answer)" }];
+        }
+
+        const sections = [];
+        for (let i = 0; i < matches.length; i++) {
+          const current = matches[i];
+          const next = matches[i + 1];
+          const title = current.title;
+          let start = current.index + current.len;
+          while (start < normalized.length && /[:\-\s]/.test(normalized[start])) {
+            start += 1;
+          }
+          const end = next ? next.index : normalized.length;
+          const body = normalized.slice(start, end).trim();
+          sections.push({ title, body: body || "(no content)" });
+        }
+
+        const preferred = ["Non-technical", "Technical", "Recommended next steps"];
+        sections.sort((a, b) => {
+          const ai = preferred.findIndex((p) => a.title.toLowerCase().includes(p.toLowerCase()));
+          const bi = preferred.findIndex((p) => b.title.toLowerCase().includes(p.toLowerCase()));
+          return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+        });
+        return sections;
+      }
+
+      function escapeHtml(s) {
+        return (s || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function renderInlineMarkdown(text) {
+        let out = escapeHtml(text);
+        out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
+        out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+        out = out.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+        return out;
+      }
+
+      function normalizeMalformedMarkdown(input) {
+        let text = (input || "").replace(/\r\n/g, "\n");
+        text = text.replace(/```([a-zA-Z][\w-]*)\s+([\s\S]*?)```/g, (m, lang, body) => {
+          const cleaned = String(body || "").trim();
+          if (!cleaned) return m;
+          return `\n\`\`\`${lang}\n${cleaned}\n\`\`\`\n`;
+        });
+        text = text.replace(/```<code>(html|js|javascript)\s+/gi, "```$1\n");
+        text = text.replace(/<\/code>\s*`{1,3}/gi, "\n```");
+        text = text.replace(/`{2,}([a-zA-Z][\w-]*)\s+<(?!\/)/g, "```$1\n<");
+        text = text.replace(/(^|\n)`{2,}([a-zA-Z][\w-]*)\s*(?=\n)/g, "$1```$2");
+        text = text.replace(/`{3,}([a-zA-Z][\w-]*)\s+<(?!\/)/g, "```$1\n<");
+        text = text.replace(/(^|\n)`{3,}([a-zA-Z][\w-]*)\s+([^\n<][^\n]*)/g, "$1```$2\n$3");
+        text = text.replace(/(^|\n)``\s*($|\n)/g, "$1```\n");
+        text = text.replace(/(<\\\/script>)\s*`(?=\s|$)/gi, "$1\n```");
+        text = text.replace(/``\s*html\s+/gi, "```html\n");
+        text = text.replace(/``\s*javascript\s+/gi, "```js\n");
+        text = text.replace(/``\s*js\s+/gi, "```js\n");
+        text = text.replace(/(^|\n)``\s*</g, "$1```\n<");
+        text = text.replace(/(<\\\/script>)\s*`{1,2}(?=\s|$)/gi, "$1\n```");
+        text = text.replace(/(^|\n)`{4,}([a-zA-Z][\w-]*)\s*(?=\n|<)/g, "$1```$2\n");
+        text = text.replace(/(^|\n)`{4,}\s*($|\n)/g, "$1```\n");
+        return text;
+      }
+
+      function renderMarkdownToHtml(markdownText) {
+        const lines = normalizeMalformedMarkdown(markdownText).split("\n");
+        const html = [];
+        let paragraph = [];
+        let listType = null;
+        let listItems = [];
+        let inCode = false;
+        let codeLang = "";
+        let codeLines = [];
+
+        const flushParagraph = () => {
+          if (!paragraph.length) return;
+          html.push(`<p>${renderInlineMarkdown(paragraph.join(" ").trim())}</p>`);
+          paragraph = [];
+        };
+
+        const closeList = () => {
+          if (!listType) return;
+          html.push(listType === "ol" ? "<ol>" : "<ul>");
+          for (const item of listItems) {
+            html.push(`<li>${renderInlineMarkdown(item.trim())}</li>`);
+          }
+          html.push(listType === "ol" ? "</ol>" : "</ul>");
+          listType = null;
+          listItems = [];
+        };
+
+        const openList = (type) => {
+          if (listType === type) return;
+          closeList();
+          listType = type;
+          listItems = [];
+        };
+
+        const flushCode = () => {
+          const safeLang = escapeHtml(codeLang || "");
+          const preClass = safeLang ? ` class="language-${safeLang}"` : "";
+          const codeClass = safeLang ? ` class="language-${safeLang}"` : "";
+          html.push(`<pre${preClass}><code${codeClass}>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+          codeLines = [];
+          codeLang = "";
+        };
+
+        for (const rawLine of lines) {
+          const line = rawLine || "";
+          const fence = line.match(/^`{3,}([\w-]+)?\s*$/);
+          if (fence) {
+            flushParagraph();
+            closeList();
+            if (!inCode) {
+              inCode = true;
+              codeLang = fence[1] || "";
+            } else {
+              inCode = false;
+              flushCode();
+            }
+            continue;
+          }
+
+          if (inCode) {
+            codeLines.push(line);
+            continue;
+          }
+
+          if (!line.trim()) {
+            flushParagraph();
+            closeList();
+            continue;
+          }
+
+          if (/^---+$/.test(line.trim())) {
+            flushParagraph();
+            closeList();
+            html.push("<hr />");
+            continue;
+          }
+
+          const h3 = line.match(/^###\s+(.+)$/);
+          if (h3) {
+            flushParagraph();
+            closeList();
+            html.push(`<h4>${renderInlineMarkdown(h3[1])}</h4>`);
+            continue;
+          }
+
+          const ol = line.match(/^\d+\.\s+(.+)$/);
+          if (ol) {
+            flushParagraph();
+            openList("ol");
+            listItems.push(ol[1]);
+            continue;
+          }
+
+          const ul = line.match(/^[-*]\s+(.+)$/);
+          if (ul) {
+            flushParagraph();
+            openList("ul");
+            listItems.push(ul[1]);
+            continue;
+          }
+
+          const quote = line.match(/^>\s+(.+)$/);
+          if (quote) {
+            flushParagraph();
+            closeList();
+            html.push(`<blockquote>${renderInlineMarkdown(quote[1])}</blockquote>`);
+            continue;
+          }
+
+          if (listType && listItems.length > 0) {
+            listItems[listItems.length - 1] += ` ${line.trim()}`;
+            continue;
+          }
+
+          paragraph.push(line.trim());
+        }
+
+        flushParagraph();
+        closeList();
+        if (inCode) flushCode();
+        return html.join("");
+      }
+
+      function renderAnswer(answerText) {
+        answerEl.innerHTML = "";
+        const sections = parseSections(answerText);
+        for (const s of sections) {
+          const wrap = document.createElement("section");
+          wrap.className = "section";
+          const h = document.createElement("h3");
+          h.textContent = s.title;
+          const b = document.createElement("div");
+          b.className = "body";
+          b.innerHTML = renderMarkdownToHtml(s.body);
+          wrap.appendChild(h);
+          wrap.appendChild(b);
+          answerEl.appendChild(wrap);
+        }
+        appendFeedbackControls();
+      }
+
+      function renderPlaceholderAnswer() {
+        answerEl.innerHTML = `
+          <section class="section"><h3>Non-technical</h3><p>...</p></section>
+          <section class="section"><h3>Technical</h3><p>...</p></section>
+          <section class="section"><h3>Recommended next steps</h3><p>...</p></section>
+        `;
+      }
+
+      function appendFeedbackControls() {
+        const block = document.createElement("div");
+        block.className = "feedback";
+        block.innerHTML = `
+          <span>Did this answer your question?</span>
+          <div class="actions">
+            <button id="fbYesInline" class="yes" type="button">Yes</button>
+            <button id="fbNoInline" class="no" type="button">No, try again</button>
+            <button id="kbCreateInline" class="kb" type="button" style="display:none">Create KB Article</button>
+            <span id="fbMsgInline" class="msg"></span>
+          </div>
+        `;
+        answerEl.appendChild(block);
+
+        const yesBtn = document.getElementById("fbYesInline");
+        const noBtn = document.getElementById("fbNoInline");
+        const kbBtn = document.getElementById("kbCreateInline");
+        const msg = document.getElementById("fbMsgInline");
+        const kbRefs = () =>
+          (lastResponse?.sources || [])
+            .filter((s) => s.repo === "KnowledgeBase")
+            .map((s) => `${s.rel_path}:${s.start_line}-${s.end_line}`);
+        const hasKbRefs = () => kbRefs().length > 0;
+        const hideButtons = () => {
+          yesBtn.style.display = "none";
+          noBtn.style.display = "none";
+        };
+
+        yesBtn.addEventListener("click", async () => {
+          if (!lastResponse) return;
+          hideButtons();
+          try {
+            await post("/api/feedback", {
+              question: lastResponse.question,
+              helpful: true,
+              sources: lastResponse.sources || [],
+              docs_only: lastResponse.docs_only,
+            });
+            if (hasKbRefs()) {
+              const refs = kbRefs();
+              const refsText = refs.slice(0, 3).join(", ");
+              const extra = refs.length > 3 ? ` (+${refs.length - 3} more)` : "";
+              kbBtn.textContent = "Create article anyway";
+              kbBtn.style.display = "inline-block";
+              msg.textContent = `Thanks, saved. This answer already used KB source(s): ${refsText}${extra}. Create another article anyway?`;
+              return;
+            }
+            kbBtn.textContent = "Create KB Article";
+            const check = await post("/api/kb/check", { question: lastResponse.question });
+            if (check.ok && !check.exists) {
+              kbBtn.style.display = "inline-block";
+              msg.textContent = "Thanks, saved. You can publish this as a KB article.";
+            } else {
+              msg.textContent = "Thanks, saved. A KB article for this question already exists.";
+            }
+          } catch {
+            msg.textContent = "Could not save feedback.";
+          }
+        });
+
+        noBtn.addEventListener("click", async () => {
+          if (!lastResponse) return;
+          hideButtons();
+          msg.textContent = "Retrying with broader retrieval...";
+          try {
+            await post("/api/feedback", {
+              question: lastResponse.question,
+              helpful: false,
+              sources: lastResponse.sources || [],
+              docs_only: lastResponse.docs_only,
+            });
+          } catch {
+            // Keep retry behavior even if feedback save fails.
+          }
+          await runAsk({ retry: true, fromLanding: false });
+        });
+
+        kbBtn.addEventListener("click", async () => {
+          if (!lastResponse) return;
+          kbBtn.disabled = true;
+          msg.textContent = "Creating KB article...";
+          try {
+            const res = await post("/api/kb/create", {
+              question: lastResponse.question,
+              answer: lastResponse.answer,
+              sources: lastResponse.sources || [],
+            });
+            if (!res.ok) throw new Error(res.error || "KB create failed");
+            if (res.url) {
+              const a = document.createElement("a");
+              a.href = res.url;
+              a.target = "_blank";
+              a.rel = "noopener noreferrer";
+              a.textContent = res.created ? "Open KB article" : "Open existing KB article";
+              a.style.marginLeft = "6px";
+              msg.textContent = res.created ? "KB article created." : "KB article already existed.";
+              msg.appendChild(a);
+            } else {
+              msg.textContent = "KB action completed.";
+            }
+            kbBtn.style.display = "none";
+          } catch (err) {
+            msg.textContent = `KB create failed: ${err.message || err}`;
+            kbBtn.disabled = false;
+          }
+        });
+      }
+
+      async function post(url, body) {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body || {}),
+        });
+        return await res.json();
+      }
+
+      function setAskLoading(isLoading, fromLanding) {
+        if (fromLanding) {
+          landingAskBtnEl.disabled = isLoading;
+          landingAskBtnEl.classList.toggle("loading", isLoading);
+          askBtnEl.disabled = isLoading;
+        } else {
+          askBtnEl.disabled = isLoading;
+          askBtnEl.classList.toggle("loading", isLoading);
+          landingAskBtnEl.disabled = isLoading;
+        }
+      }
+
+      function startStatusAnimation(baseText, fromLanding) {
+        stopStatusAnimation(null, fromLanding);
+        let step = 0;
+        if (fromLanding) {
+          landingStatusEl.textContent = baseText;
+        } else {
+          statusEl.textContent = baseText;
+        }
+        statusAnimTimer = setInterval(() => {
+          const value = `${baseText}${".".repeat(step)}`;
+          if (fromLanding) {
+            landingStatusEl.textContent = value;
+          } else {
+            statusEl.textContent = value;
+          }
+          step = (step + 1) % 4;
+        }, 320);
+      }
+
+      function stopStatusAnimation(finalText = null, fromLanding = false) {
+        if (statusAnimTimer) {
+          clearInterval(statusAnimTimer);
+          statusAnimTimer = null;
+        }
+        if (typeof finalText === "string") {
+          if (fromLanding) {
+            landingStatusEl.textContent = finalText;
+          } else {
+            statusEl.textContent = finalText;
+          }
+        }
+      }
+
+      async function runAsk({ retry = false, fromLanding = false } = {}) {
+        const question = (fromLanding ? landingQuestionEl.value : questionEl.value).trim();
+        if (!question) {
+          if (fromLanding) {
+            landingStatusEl.textContent = "Enter a question first.";
+          } else {
+            statusEl.textContent = "Enter a question first.";
+          }
+          return;
+        }
+
+        setAskLoading(true, fromLanding);
+        startStatusAnimation(retry ? "Retrying with broader retrieval" : "Searching and generating answer", fromLanding);
+
+        if (!fromLanding) {
+          renderPlaceholderAnswer();
+          sourcesEl.innerHTML = "<li>...</li>";
+          timingTextEl.textContent = "Waiting for model response...";
+        }
+
+        try {
+          const docsOnly = inResponseMode() ? !!docsOnlyEl.checked : true;
+          const data = await post("/api/chat", { question, k: retry ? 12 : 6, docs_only: docsOnly, retry });
+          if (!data.ok) throw new Error(data.error || "Chat failed");
+
+          switchToResponseMode(question);
+          lastResponse = {
+            question,
+            docs_only: !!data.docs_only,
+            sources: data.sources || [],
+            answer: data.answer || "",
+          };
+          questionEl.value = question;
+          renderAnswer(data.answer || "(no answer)");
+
+          const modeText = data.docs_only ? "Docs only" : "Hybrid";
+          const latencyText = typeof data.latency_ms === "number" ? `${(data.latency_ms / 1000).toFixed(2)} s` : "n/a";
+          const attemptText = data.retry ? "Retry" : "Primary";
+          timingTextEl.textContent = `Mode: ${modeText} | Time: ${latencyText} | Pass: ${attemptText}`;
+          stopStatusAnimation(data.retry ? "Retry complete." : "Done.", false);
+          landingStatusEl.textContent = "";
+
+          sourcesEl.innerHTML = "";
+          for (const src of data.sources || []) {
+            const li = document.createElement("li");
+            const a = document.createElement("a");
+            const qs = new URLSearchParams({
+              repo: src.repo,
+              path: src.rel_path,
+              start: String(src.start_line),
+              end: String(src.end_line),
+            });
+            a.href = `/api/source?${qs.toString()}`;
+            a.target = "_blank";
+            a.rel = "noopener noreferrer";
+            a.textContent = `${src.repo}/${src.rel_path}:${src.start_line}-${src.end_line}`;
+            li.appendChild(a);
+
+            if (src.repo === "KnowledgeBase" && src.rel_path) {
+              const kbPath = String(src.rel_path)
+                .split("/")
+                .map((part) => encodeURIComponent(part))
+                .join("/");
+              const kbHref = `/kb/${kbPath}`;
+              const sep = document.createElement("span");
+              sep.textContent = " · ";
+              const kbLink = document.createElement("a");
+              kbLink.href = kbHref;
+              kbLink.target = "_blank";
+              kbLink.rel = "noopener noreferrer";
+              kbLink.textContent = "KB page";
+              li.appendChild(sep);
+              li.appendChild(kbLink);
+            }
+
+            sourcesEl.appendChild(li);
+          }
+        } catch (err) {
+          stopStatusAnimation(`Error: ${err.message}`, fromLanding);
+        } finally {
+          setAskLoading(false, fromLanding);
+        }
+      }
+
+      document.getElementById("indexLink").addEventListener("click", async (e) => {
+        e.preventDefault();
+        const target = inResponseMode() ? statusEl : landingStatusEl;
+        target.textContent = "Indexing repositories...";
+        try {
+          const data = await post("/api/index", {});
+          if (!data.ok) throw new Error(data.error || "Index failed");
+          const s = data.summary;
+          target.textContent = `Indexed ${s.repos} repos, ${s.files} files, ${s.chunks} chunks.`;
+        } catch (err) {
+          target.textContent = `Error: ${err.message}`;
+        }
+      });
+
+      landingAskBtnEl.addEventListener("click", async () => {
+        await runAsk({ retry: false, fromLanding: true });
+      });
+      landingQuestionEl.addEventListener("keydown", async (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          await runAsk({ retry: false, fromLanding: true });
+        }
+      });
+
+      askBtnEl.addEventListener("click", async () => {
+        await runAsk({ retry: false, fromLanding: false });
+      });
+
+      loadRandomBrandProfile();
+      renderPlaceholderAnswer();
+    </script>
+  </body>
+</html>

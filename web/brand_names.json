@@ -1,0 +1,88 @@
+{
+  "profiles": [
+    {
+      "title": "DIGIDAN",
+      "subtitle_lines": [
+        "Documentation &",
+        "Integration",
+        "Guide for",
+        "Intelligent",
+        "Diagnostic,",
+        "Accessibility &",
+        "Navigation"
+      ]
+    },
+    {
+      "title": "LEWIS",
+      "subtitle_lines": [
+        "Live",
+        "Environment &",
+        "Workflow",
+        "Intelligence",
+        "System"
+      ]
+    },
+    {
+      "title": "PAD",
+      "subtitle_lines": [
+        "Product",
+        "Answering &",
+        "Diagnostics"
+      ]
+    },
+    {
+      "title": "ROSS",
+      "subtitle_lines": [
+        "Recite-me",
+        "Operational",
+        "Support &",
+        "Solutions"
+      ]
+    },
+    {
+      "title": "CrAIg",
+      "subtitle_lines": [
+        "Curated",
+        "Recite-me",
+        "Accessibility &",
+        "Integration",
+        "Guide"
+      ]
+    },
+    {
+      "title": "nBERT",
+      "subtitle_lines": [
+        "(non-Biological Expert Recite me Technician)"
+      ]
+    },
+    {
+      "title": "DAN",
+      "subtitle_lines": [
+        "Digital Accessibility Nexpert"
+      ]
+    },
+    {
+      "title": "KATIE",
+      "subtitle_lines": [
+        "Knowledge & Accessibility",
+        "Triage, Integration",
+        "Engine"
+      ]
+    },
+    {
+      "title": "JOHN",
+      "subtitle_lines": [
+        "Journey Optimization &",
+        "Help Navigator"
+      ]
+    },
+    {
+      "title": "ALISON",
+      "subtitle_lines": [
+        "Accessibility, Language",
+        "Integration & Support",
+        "Operations Network"
+      ]
+    }
+  ]
+}

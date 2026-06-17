@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Create KB Article</title>
+    <style>
+      :root {
+        --bg: #f1f3f5;
+        --panel: #ffffff;
+        --ink: #16202a;
+        --muted: #5e6b77;
+        --accent: #0b6bcb;
+        --border: #d8dde4;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+      }
+      .wrap {
+        width: min(1040px, 100%);
+        margin: 24px auto;
+        padding: 0 20px;
+      }
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .topbar a {
+        color: #0b6bcb;
+        text-decoration: none;
+        font-weight: 600;
+      }
+      .topbar a:hover {
+        text-decoration: underline;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 18px;
+        box-shadow: 0 10px 24px rgba(22, 32, 42, 0.06);
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 28px;
+      }
+      .muted {
+        color: var(--muted);
+        margin: 0 0 16px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .field.full {
+        grid-column: 1 / -1;
+      }
+      label {
+        font-size: 14px;
+        color: #304153;
+      }
+      input,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 15px;
+        font-family: inherit;
+      }
+      textarea {
+        min-height: 120px;
+        resize: vertical;
+      }
+      .actions {
+        margin-top: 14px;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 10px;
+      }
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 10px 16px;
+        background: var(--accent);
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.8;
+        cursor: not-allowed;
+      }
+      .spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(255, 255, 255, 0.45);
+        border-top-color: #ffffff;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        display: none;
+      }
+      button.loading .spinner {
+        display: inline-block;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .status {
+        margin-top: 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: #fbfcfe;
+        padding: 10px 12px;
+        color: #253443;
+        min-height: 42px;
+        line-height: 1.4;
+      }
+      .status a {
+        color: #0b6bcb;
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .status a:hover {
+        text-decoration: underline;
+      }
+      @media (max-width: 900px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="topbar">
+        <a href="/">Ask something new</a>
+        <a href="/kb">Back to KB index</a>
+      </div>
+      <div class="card">
+        <h1>Create KB Article</h1>
+        <p class="muted">Build a structured Knowledge Base article by filling each section.</p>
+
+        <div class="grid">
+          <div class="field full">
+            <label for="question">Question</label>
+            <input id="question" type="text" placeholder="How do I add the toolbar to my website?" />
+          </div>
+
+          <div class="field">
+            <label for="nonTechnical">Non-technical explanation</label>
+            <textarea id="nonTechnical" placeholder="Plain-language explanation for non-technical readers."></textarea>
+          </div>
+
+          <div class="field">
+            <label for="technical">Technical explanation</label>
+            <textarea id="technical" placeholder="Implementation details, snippets, setup steps."></textarea>
+          </div>
+
+          <div class="field">
+            <label for="recommended">Recommended next steps</label>
+            <textarea id="recommended" placeholder="1. Validate config\n2. Test in staging\n3. Roll out"></textarea>
+          </div>
+
+          <div class="field">
+            <label for="verify">What to verify (optional)</label>
+            <textarea id="verify" placeholder="Optional checks to perform after implementation."></textarea>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="createBtn" type="button">
+            <span>Create KB article</span>
+            <span class="spinner" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <div id="status" class="status">Ready.</div>
+      </div>
+    </div>
+
+    <script>
+      const questionEl = document.getElementById("question");
+      const nonTechnicalEl = document.getElementById("nonTechnical");
+      const technicalEl = document.getElementById("technical");
+      const recommendedEl = document.getElementById("recommended");
+      const verifyEl = document.getElementById("verify");
+      const createBtnEl = document.getElementById("createBtn");
+      const statusEl = document.getElementById("status");
+
+      async function post(url, body) {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body || {}),
+        });
+        return await res.json();
+      }
+
+      function setLoading(isLoading) {
+        createBtnEl.disabled = isLoading;
+        createBtnEl.classList.toggle("loading", isLoading);
+      }
+
+      async function createArticle() {
+        const payload = {
+          question: questionEl.value.trim(),
+          non_technical: nonTechnicalEl.value.trim(),
+          technical: technicalEl.value.trim(),
+          recommended_steps: recommendedEl.value.trim(),
+          what_to_verify: verifyEl.value.trim(),
+          sources: [],
+        };
+
+        if (!payload.question) {
+          statusEl.textContent = "Question is required.";
+          return;
+        }
+
+        setLoading(true);
+        statusEl.textContent = "Creating KB article...";
+        try {
+          const data = await post("/api/kb/create-form", payload);
+          if (!data.ok) throw new Error(data.error || "Create failed");
+
+          const linkText = data.created ? "Open new article" : "Open existing article";
+          const url = data.url || "/kb";
+          statusEl.innerHTML = `Done. <a href="${url}" target="_blank" rel="noopener noreferrer">${linkText}</a>`;
+        } catch (err) {
+          statusEl.textContent = `Error: ${err.message || err}`;
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      createBtnEl.addEventListener("click", createArticle);
+      questionEl.addEventListener("keydown", async (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          await createArticle();
+        }
+      });
+    </script>
+  </body>
+</html>
