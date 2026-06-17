@@ -1,5 +1,7 @@
 # Handover
 
+To continue this session, run codex resume 019ecf6e-8272-7ec0-b15f-b1fae3209145
+
 ## Date
 
 - June 15, 2026

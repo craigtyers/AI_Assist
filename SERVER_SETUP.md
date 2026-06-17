@@ -21,17 +21,7 @@ git clone <recite-toolbar-url> /opt/rag-sources/recite-toolbar
 git clone <launcher-url> /opt/rag-sources/Recite.toolbar.launcher
 ```
 
-## 2) Run the app with explicit repo paths
-
-```bash
-cd /opt/ai-assist
-export RAG_REPO_PATHS="/opt/rag-sources/recite-api:/opt/rag-sources/recite-toolbar:/opt/rag-sources/Recite.toolbar.launcher"
-export RAG_HOST=0.0.0.0
-export RAG_PORT=8088
-python3 app.py
-```
-
-## Ollama setup (required)
+## 2) Ollama setup (required before running app)
 
 The app uses Ollama for generation. Current default model is `qwen3:8b`.
 
@@ -60,7 +50,30 @@ curl -s http://127.0.0.1:11434/api/generate \
   -d '{"model":"qwen3:8b","prompt":"Say OK","stream":false}'
 ```
 
-## 3) Build/rebuild index
+## 3) IMPORTANT: set `RAG_REPO_PATHS` on server
+
+Do not rely on defaults in code.  
+Defaults point to local development paths and will not exist on a new server.
+
+You must set:
+
+```bash
+export RAG_REPO_PATHS="/opt/rag-sources/recite-api:/opt/rag-sources/recite-toolbar:/opt/rag-sources/Recite.toolbar.launcher"
+```
+
+Without this, indexing/search will not use the intended repos.
+
+## 4) Run the app
+
+```bash
+cd /opt/ai-assist
+export RAG_REPO_PATHS="/opt/rag-sources/recite-api:/opt/rag-sources/recite-toolbar:/opt/rag-sources/Recite.toolbar.launcher"
+export RAG_HOST=0.0.0.0
+export RAG_PORT=8088
+python3 app.py
+```
+
+## 5) Build/rebuild index
 
 Either use UI `Reindex repos` or call API directly:
 
@@ -70,7 +83,7 @@ curl -s -X POST http://127.0.0.1:8088/api/index \
   -d '{}'
 ```
 
-## 4) Health and smoke checks
+## 6) Health and smoke checks
 
 ```bash
 curl -s http://127.0.0.1:8088/health
@@ -79,7 +92,7 @@ curl -s -X POST http://127.0.0.1:8088/api/search \
   -d '{"query":"toolbar changelog recent changes","k":8,"docs_only":true}'
 ```
 
-## 5) Update flow
+## 7) Update flow
 
 ### Update app code
 
