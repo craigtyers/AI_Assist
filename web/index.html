@@ -529,6 +529,7 @@
           <div>
             <span id="roleBadge" class="role-pill">Role: visitor</span>
             <a class="kb-inline-link" href="/kb" target="_blank" rel="noopener noreferrer">Knowledge Base</a>
+            <a id="adminInlineLink" class="kb-inline-link" href="/admin/pending" style="display:none;">Admin Pending</a>
           </div>
         </div>
         <p class="muted">Ask questions across <code>recite-api</code>, <code>recite-toolbar</code>, and <code>Recite.toolbar.launcher</code>.</p>
@@ -577,6 +578,7 @@
       const timingTextEl = document.getElementById("timingText");
       const kbCornerLinkEl = document.getElementById("kbCornerLink");
       const adminCornerLinkEl = document.getElementById("adminCornerLink");
+      const adminInlineLinkEl = document.getElementById("adminInlineLink");
       const indexLinkEl = document.getElementById("indexLink");
       const landingTitleEl = document.getElementById("landingTitle");
       const landingSubtitleEl = document.getElementById("landingSubtitle");
@@ -633,6 +635,11 @@
         return !responseViewEl.classList.contains("hidden");
       }
 
+      function setAdminLinkText(text) {
+        if (adminCornerLinkEl) adminCornerLinkEl.textContent = text;
+        if (adminInlineLinkEl) adminInlineLinkEl.textContent = text;
+      }
+
       function clearScopeNotice() {
         if (!scopeNoticeEl) return;
         scopeNoticeEl.classList.add("hidden");
@@ -678,9 +685,14 @@
           }
         }
         if (adminCornerLinkEl) {
-          adminCornerLinkEl.style.display = sessionInfo?.is_admin ? "inline" : "none";
-          adminCornerLinkEl.textContent = "Admin Pending";
+          const showCorner = sessionInfo?.is_admin && !inResponseMode();
+          adminCornerLinkEl.style.display = showCorner ? "inline" : "none";
         }
+        if (adminInlineLinkEl) {
+          const showInline = sessionInfo?.is_admin && inResponseMode();
+          adminInlineLinkEl.style.display = showInline ? "inline" : "none";
+        }
+        setAdminLinkText("Admin Pending");
         if (indexLinkEl) {
           indexLinkEl.style.display = sessionInfo?.is_admin ? "inline" : "none";
         }
@@ -693,9 +705,9 @@
           const data = await res.json();
           if (!data?.ok) throw new Error(data?.error || "Pending list failed");
           const count = Array.isArray(data.items) ? data.items.length : 0;
-          adminCornerLinkEl.textContent = `Admin Pending (${count})`;
+          setAdminLinkText(`Admin Pending (${count})`);
         } catch {
-          adminCornerLinkEl.textContent = "Admin Pending";
+          setAdminLinkText("Admin Pending");
         }
       }
 
