@@ -165,6 +165,14 @@
       .kb-inline-link:hover {
         text-decoration: underline;
       }
+      .kb-inline-link + .kb-inline-link {
+        margin-left: 10px;
+      }
+      .kb-inline-link + .kb-inline-link::before {
+        content: "|";
+        color: #8a96a3;
+        margin-right: 10px;
+      }
       .muted {
         color: var(--muted);
         margin: 0 0 12px;
@@ -587,6 +595,7 @@
       const roleHintEl = document.getElementById("roleHint");
       const scopeNoticeEl = document.getElementById("scopeNotice");
       let lastResponse = null;
+      let adminPendingCount = null;
       let sessionInfo = {
         role: "visitor",
         role_level: 1,
@@ -638,6 +647,10 @@
       function setAdminLinkText(text) {
         if (adminCornerLinkEl) adminCornerLinkEl.textContent = text;
         if (adminInlineLinkEl) adminInlineLinkEl.textContent = text;
+      }
+
+      function getAdminLinkLabel() {
+        return Number.isInteger(adminPendingCount) ? `Admin Pending (${adminPendingCount})` : "Admin Pending";
       }
 
       function clearScopeNotice() {
@@ -692,7 +705,7 @@
           const showInline = sessionInfo?.is_admin && inResponseMode();
           adminInlineLinkEl.style.display = showInline ? "inline" : "none";
         }
-        setAdminLinkText("Admin Pending");
+        setAdminLinkText(getAdminLinkLabel());
         if (indexLinkEl) {
           indexLinkEl.style.display = sessionInfo?.is_admin ? "inline" : "none";
         }
@@ -704,10 +717,11 @@
           const res = await fetch("/api/kb/pending", { cache: "no-store" });
           const data = await res.json();
           if (!data?.ok) throw new Error(data?.error || "Pending list failed");
-          const count = Array.isArray(data.items) ? data.items.length : 0;
-          setAdminLinkText(`Admin Pending (${count})`);
+          adminPendingCount = Array.isArray(data.items) ? data.items.length : 0;
+          setAdminLinkText(getAdminLinkLabel());
         } catch {
-          setAdminLinkText("Admin Pending");
+          adminPendingCount = null;
+          setAdminLinkText(getAdminLinkLabel());
         }
       }
 
@@ -742,6 +756,8 @@
         if (question && !questionEl.value.trim()) {
           questionEl.value = question;
         }
+        // Re-apply role-dependent link placement after mode switch.
+        applyRoleUi();
       }
 
       function parseSections(answerText) {
