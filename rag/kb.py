@@ -503,12 +503,12 @@ def create_kb_article(
     <div class="card">
       <h2 class="title">{escape(title)}</h2>
       <div class="meta">Created: {escape(created_at)}</div>
-      <div class="q"><strong>Question:</strong> {escape(question)}</div>
-      <div class="a">
+      <div id="question-section" class="q"><strong>Question:</strong> {escape(question)}</div>
+      <div id="answer-section" class="a">
         <h2>Answer</h2>
         {_answer_markdown_to_html(answer)}
       </div>
-      <div class="refs">
+      <div id="references-section" class="refs">
         <h3>References</h3>
         <ul>
           {"".join(src_rows) if src_rows else "<li>No references captured.</li>"}
@@ -629,12 +629,12 @@ def _write_pending_article_html(
     <div class="card">
       <h2 class="title">{escape(title)}</h2>
       <div class="meta">Status: Pending admin approval | Created: {escape(created_at)}</div>
-      <div class="q"><strong>Question:</strong> {escape(question)}</div>
-      <div class="a">
+      <div id="question-section" class="q"><strong>Question:</strong> {escape(question)}</div>
+      <div id="answer-section" class="a">
         <h2>Answer</h2>
         {_answer_markdown_to_html(answer)}
       </div>
-      <div class="refs">
+      <div id="references-section" class="refs">
         <h3>References</h3>
         <ul>
           {"".join(src_rows) if src_rows else "<li>No references captured.</li>"}

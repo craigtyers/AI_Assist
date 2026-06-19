@@ -406,6 +406,16 @@
       .sources a:hover {
         text-decoration: underline;
       }
+      .citation-meta {
+        color: #445363;
+        margin-left: 6px;
+        font-size: 13px;
+      }
+      .citation-source {
+        color: #5e6b77;
+        margin-left: 6px;
+        font-size: 12px;
+      }
       .admin-panel {
         border: 1px solid #d9e3ee;
         border-radius: 10px;
@@ -545,12 +555,6 @@
               <h4>Run Details</h4>
               <p id="timingText">Timing will appear after a response.</p>
             </div>
-            <div id="adminPanel" class="admin-panel hidden">
-              <h4>Pending KB (Admin)</h4>
-              <ul id="pendingList" class="admin-list">
-                <li>No pending items.</li>
-              </ul>
-            </div>
             <h3 class="refs-title">References</h3>
             <ul id="sources" class="sources"><li>...</li></ul>
           </aside>
@@ -580,8 +584,6 @@
       const roleBadgeEl = document.getElementById("roleBadge");
       const roleHintEl = document.getElementById("roleHint");
       const scopeNoticeEl = document.getElementById("scopeNotice");
-      const adminPanelEl = document.getElementById("adminPanel");
-      const pendingListEl = document.getElementById("pendingList");
       let lastResponse = null;
       let sessionInfo = {
         role: "visitor",
@@ -675,14 +677,25 @@
               'Admin mode is active: admin controls enabled. Dev switch: <a href="/__dev/role?role=visitor">visitor</a> | <a href="/__dev/role?role=user">user</a>';
           }
         }
-        if (adminPanelEl) {
-          adminPanelEl.classList.toggle("hidden", !sessionInfo?.is_admin);
-        }
         if (adminCornerLinkEl) {
           adminCornerLinkEl.style.display = sessionInfo?.is_admin ? "inline" : "none";
+          adminCornerLinkEl.textContent = "Admin Pending";
         }
         if (indexLinkEl) {
           indexLinkEl.style.display = sessionInfo?.is_admin ? "inline" : "none";
+        }
+      }
+
+      async function updateAdminPendingBadge() {
+        if (!sessionInfo?.is_admin || !adminCornerLinkEl) return;
+        try {
+          const res = await fetch("/api/kb/pending", { cache: "no-store" });
+          const data = await res.json();
+          if (!data?.ok) throw new Error(data?.error || "Pending list failed");
+          const count = Array.isArray(data.items) ? data.items.length : 0;
+          adminCornerLinkEl.textContent = `Admin Pending (${count})`;
+        } catch {
+          adminCornerLinkEl.textContent = "Admin Pending";
         }
       }
 
@@ -704,112 +717,9 @@
           // Keep defaults.
         } finally {
           applyRoleUi();
-        }
-      }
-
-      async function loadPendingForAdmin() {
-        if (!sessionInfo?.is_admin || !pendingListEl) return;
-        try {
-          const res = await fetch("/api/kb/pending", { cache: "no-store" });
-          const data = await res.json();
-          if (!data?.ok) throw new Error(data?.error || "Pending list failed");
-          const items = Array.isArray(data.items) ? data.items : [];
-          if (!items.length) {
-            pendingListEl.innerHTML = "<li>No pending items.</li>";
-            return;
+          if (sessionInfo?.is_admin) {
+            await updateAdminPendingBadge();
           }
-          pendingListEl.innerHTML = "";
-          const sectionLabels = {
-            non_technical: "Non-technical",
-            technical: "Technical",
-            recommended_steps: "Recommended steps",
-            what_to_verify: "What to verify",
-          };
-          for (const item of items) {
-            const li = document.createElement("li");
-            li.className = "admin-item";
-            const left = document.createElement("div");
-            const title = document.createElement("div");
-            title.textContent = item.title || item.slug || "(untitled)";
-            const meta = document.createElement("div");
-            meta.className = "meta";
-            meta.textContent = `${item.slug} | ${item.created_at || ""}`;
-            left.appendChild(title);
-            left.appendChild(meta);
-
-            const sectionsWrap = document.createElement("div");
-            sectionsWrap.className = "pending-sections";
-            const itemSections = item?.sections || {};
-            for (const sectionKey of Object.keys(sectionLabels)) {
-              const sec = document.createElement("div");
-              sec.className = "pending-section";
-              const secHead = document.createElement("div");
-              secHead.className = "pending-section-head";
-              const secTitle = document.createElement("div");
-              secTitle.className = "pending-section-title";
-              secTitle.textContent = sectionLabels[sectionKey];
-              const rewordBtn = document.createElement("button");
-              rewordBtn.type = "button";
-              rewordBtn.textContent = "Reword";
-              const secBody = document.createElement("div");
-              secBody.className = "pending-section-body";
-              secBody.textContent = String(itemSections[sectionKey] || "").trim() || "(empty)";
-              rewordBtn.addEventListener("click", async () => {
-                const steering = window.prompt(
-                  `How should this section be reworded?\nExample: make it clearer, less threatening, shorter`,
-                  "make it clearer"
-                );
-                if (steering === null) return;
-                rewordBtn.disabled = true;
-                const prev = rewordBtn.textContent;
-                rewordBtn.textContent = "Rewording...";
-                try {
-                  const result = await post("/api/kb/pending/rewrite-section", {
-                    slug: item.slug,
-                    section: sectionKey,
-                    steering,
-                  });
-                  if (!result?.ok) throw new Error(result?.error || "Rewrite failed");
-                  secBody.textContent = String(result.text || "").trim() || "(empty)";
-                  statusEl.textContent = `Updated ${sectionLabels[sectionKey]} for ${item.slug}.`;
-                } catch (err) {
-                  statusEl.textContent = `Rewrite failed: ${err.message || err}`;
-                } finally {
-                  rewordBtn.disabled = false;
-                  rewordBtn.textContent = prev;
-                }
-              });
-              secHead.appendChild(secTitle);
-              secHead.appendChild(rewordBtn);
-              sec.appendChild(secHead);
-              sec.appendChild(secBody);
-              sectionsWrap.appendChild(sec);
-            }
-
-            const actions = document.createElement("div");
-            const approveBtn = document.createElement("button");
-            approveBtn.type = "button";
-            approveBtn.textContent = "Approve";
-            approveBtn.addEventListener("click", async () => {
-              approveBtn.disabled = true;
-              try {
-                const result = await post("/api/kb/pending/approve", { slug: item.slug });
-                if (!result?.ok) throw new Error(result?.error || "Approve failed");
-                await loadPendingForAdmin();
-              } catch (err) {
-                approveBtn.disabled = false;
-                statusEl.textContent = `Approval failed: ${err.message || err}`;
-              }
-            });
-            actions.appendChild(approveBtn);
-
-            li.appendChild(left);
-            li.appendChild(sectionsWrap);
-            li.appendChild(actions);
-            pendingListEl.appendChild(li);
-          }
-        } catch (err) {
-          pendingListEl.innerHTML = `<li>Error: ${err.message || err}</li>`;
         }
       }
 
@@ -817,7 +727,6 @@
         landingViewEl.classList.add("hidden");
         responseViewEl.classList.remove("hidden");
         kbCornerLinkEl.classList.add("hidden");
-        if (adminCornerLinkEl) adminCornerLinkEl.classList.add("hidden");
         if (question && !questionEl.value.trim()) {
           questionEl.value = question;
         }
@@ -1171,9 +1080,7 @@
                 : "KB action completed.";
             }
             kbBtn.style.display = "none";
-            if (sessionInfo?.is_admin) {
-              await loadPendingForAdmin();
-            }
+            if (sessionInfo?.is_admin) await updateAdminPendingBadge();
           } catch (err) {
             msg.textContent = `KB create failed: ${err.message || err}`;
             kbBtn.disabled = false;
@@ -1310,43 +1217,57 @@
           landingStatusEl.textContent = "";
 
           sourcesEl.innerHTML = "";
-          for (const src of data.sources || []) {
+          (data.sources || []).forEach((src, idx) => {
             const li = document.createElement("li");
-            const a = document.createElement("a");
-            const qs = new URLSearchParams({
-              repo: src.repo,
-              path: src.rel_path,
-              start: String(src.start_line),
-              end: String(src.end_line),
-            });
-            a.href = `/api/source?${qs.toString()}`;
-            a.target = "_blank";
-            a.rel = "noopener noreferrer";
-            a.textContent = `${src.repo}/${src.rel_path}:${src.start_line}-${src.end_line}`;
-            li.appendChild(a);
-
-            if (src.repo === "KnowledgeBase" && src.rel_path) {
+            const citationLink = document.createElement("a");
+            const isKb = src.repo === "KnowledgeBase" && src.rel_path;
+            const citationNumber = idx + 1;
+            if (isKb) {
               const kbPath = String(src.rel_path)
                 .split("/")
                 .map((part) => encodeURIComponent(part))
                 .join("/");
-              const kbHref = `/kb/${kbPath}`;
-              const sep = document.createElement("span");
-              sep.textContent = " · ";
-              const kbLink = document.createElement("a");
-              kbLink.href = kbHref;
-              kbLink.target = "_blank";
-              kbLink.rel = "noopener noreferrer";
-              kbLink.textContent = "KB page";
-              li.appendChild(sep);
-              li.appendChild(kbLink);
+              citationLink.href = `/kb/${kbPath}#answer-section`;
+              citationLink.ariaLabel = `Open citation ${citationNumber} section in KB article`;
+            } else {
+              const qs = new URLSearchParams({
+                repo: src.repo,
+                path: src.rel_path,
+                start: String(src.start_line),
+                end: String(src.end_line),
+              });
+              citationLink.href = `/api/source?${qs.toString()}`;
+              citationLink.ariaLabel = `Open citation ${citationNumber} source excerpt`;
             }
+            citationLink.target = "_blank";
+            citationLink.rel = "noopener noreferrer";
+            citationLink.textContent = `[${citationNumber}]`;
+            li.appendChild(citationLink);
 
+            const meta = document.createElement("span");
+            meta.className = "citation-meta";
+            meta.textContent = `${src.repo}/${src.rel_path}:${src.start_line}-${src.end_line}`;
+            li.appendChild(meta);
+
+            if (isKb) {
+              const source = document.createElement("span");
+              source.className = "citation-source";
+              source.textContent = "Citation source: ";
+              const kbPath = String(src.rel_path)
+                .split("/")
+                .map((part) => encodeURIComponent(part))
+                .join("/");
+              const fullLink = document.createElement("a");
+              fullLink.href = `/kb/${kbPath}`;
+              fullLink.target = "_blank";
+              fullLink.rel = "noopener noreferrer";
+              fullLink.textContent = "Full article";
+              source.appendChild(fullLink);
+              li.appendChild(source);
+            }
             sourcesEl.appendChild(li);
-          }
-          if (sessionInfo?.is_admin) {
-            await loadPendingForAdmin();
-          }
+          });
+          if (sessionInfo?.is_admin) await updateAdminPendingBadge();
         } catch (err) {
           stopStatusAnimation(`Error: ${err.message}`, fromLanding);
         } finally {
@@ -1383,7 +1304,12 @@
       });
 
       loadRandomBrandProfile();
-      loadSessionInfo().then(loadPendingForAdmin);
+      loadSessionInfo();
+      setInterval(() => {
+        if (sessionInfo?.is_admin) {
+          updateAdminPendingBadge();
+        }
+      }, 20000);
       renderPlaceholderAnswer();
     </script>
   </body>
