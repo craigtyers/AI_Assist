@@ -1,5 +1,13 @@
 [
   {
+    "slug": "what-cookies-does-the-toolbar-set",
+    "file": "what-cookies-does-the-toolbar-set.html",
+    "title": "What cookies does the toolbar set",
+    "question": "What cookies does the toolbar set?",
+    "created_at": "2026-06-19T11:47:40.486299+00:00",
+    "sources_count": 8
+  },
+  {
     "slug": "what-csp-allowlist-is-required-for-recite-me-launcher-toolbar-and-events",
     "file": "what-csp-allowlist-is-required-for-recite-me-launcher-toolbar-and-events.html",
     "title": "What CSP allowlist is required for Recite Me launcher, toolbar, and events",

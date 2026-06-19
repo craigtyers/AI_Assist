@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>What cookies does the toolbar set | Knowledge Base</title>
+  <style>
+    body { font-family: "IBM Plex Sans", "Segoe UI", sans-serif; margin: 0; background: #ecf1f5; color: #18222c; }
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 24px; }
+    .kb-head { background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%); border: 1px solid #d4deea; border-radius: 14px; padding: 18px; margin-bottom: 14px; }
+    .kicker { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #2b5e8c; font-weight: 700; }
+    .kb-head h1 { margin: 0; font-size: 30px; color: #173d5e; }
+    .kb-head h1 a { color: inherit; text-decoration: none; }
+    .kb-head h1 a:hover { text-decoration: underline; }
+    .kb-head p { margin: 8px 0 0; color: #4f6478; }
+    .card { background: #ffffff; border: 1px solid #d8dde4; border-radius: 14px; padding: 20px; box-shadow: 0 8px 20px rgba(17, 44, 73, 0.05); }
+    .title { margin: 0 0 10px; color: #123756; }
+    .meta { color: #5e6b77; font-size: 13px; margin-bottom: 14px; }
+    .q { padding: 12px; background: #f4f9ff; border: 1px solid #d6e4f3; border-radius: 10px; }
+    .a { margin-top: 16px; }
+    .a h2 { font-size: 22px; margin: 0 0 12px; color: #173d5e; }
+    .a h3 { font-size: 18px; margin-top: 24px; margin-bottom: 8px; color: #0d62a8; letter-spacing: 0.01em; }
+    .a p { line-height: 1.7; color: #1f2d3a; margin-top: 10px; }
+    .a ul, .a ol { margin-top: 8px; margin-bottom: 10px; }
+    .a li { margin-bottom: 7px; line-height: 1.65; }
+    .a pre {
+      background: #0f1720;
+      color: #f8fafc;
+      border: 1px solid #2b3744;
+      padding: 16px 18px;
+      border-radius: 10px;
+      overflow-x: auto;
+      margin-top: 12px;
+      margin-bottom: 12px;
+    }
+    .a pre code {
+      background: transparent;
+      border: 0;
+      padding: 0;
+      color: #f8fafc;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+    .a code {
+      background: #eef3f8;
+      border: 1px solid #dbe4ee;
+      border-radius: 6px;
+      padding: 1px 5px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 14px;
+      color: #1b2b3a;
+    }
+    .refs { margin-top: 22px; border-top: 1px solid #d9e3ee; padding-top: 14px; }
+    .refs h3 { margin: 0 0 8px; color: #305a7d; }
+    .refs a { color: #0b6bcb; text-decoration: none; }
+    .refs a:hover { text-decoration: underline; }
+    .footer-links { margin-top: 14px; display: flex; justify-content: flex-end; gap: 16px; flex-wrap: wrap; }
+    .footer-links a { color: #0b6bcb; text-decoration: none; font-weight: 700; }
+    .footer-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="kb-head">
+      <p class="kicker">Recite Me</p>
+      <h1><a href="/kb">Knowledge Base</a></h1>
+      <p>Practical guidance and implementation patterns.</p>
+    </header>
+    <div class="card">
+      <h2 class="title">What cookies does the toolbar set</h2>
+      <div class="meta">Created: 2026-06-19T11:47:40.486299+00:00</div>
+      <div class="q"><strong>Question:</strong> What cookies does the toolbar set?</div>
+      <div class="a">
+        <h2>Answer</h2>
+        <h3>Non-technical explanation</h3>
+<p>The toolbar stores two main browser cookies: one to remember whether the toolbar should stay enabled across page loads, and one to store the user’s selected accessibility preferences.</p>
+<h3>Technical explanation</h3>
+<p>The key cookie names used by toolbar code are <code>Recite.Persist</code> and <code>Recite.Preferences</code>. <code>Recite.Persist</code> is written/read by <code>Recite.js</code> and used by launcher logic to auto-launch when set to true. <code>Recite.Preferences</code> is saved by the preferences module. Storage implementation is in <code>Recite/Storage/Cookie.js</code> (cookie writer/reader with domain/secure/samesite options). The launcher also checks localStorage key <code>recite.persist</code>, which is not a cookie.</p>
+<h3>Recommended next steps</h3>
+<ol>
+<li>Treat <code>Recite.Persist</code> as toolbar on/off persistence state.</li>
+<li>Treat <code>Recite.Preferences</code> as user preference payload.</li>
+<li>If auditing storage, check both cookies and localStorage key <code>recite.persist</code>.</li>
+<li>Confirm exact lifetime/domain flags from <code>cookieLife</code>, <code>Storage.Cookie.cookiesDomain</code>, and <code>Storage.Cookie.secure</code> settings.</li>
+</ol>
+<h3>What to verify</h3>
+<ul>
+<li>Runtime cookie values in browser devtools for your environment.</li>
+<li>Whether integration uses cookie or localStorage preference engine settings.</li>
+</ul>
+      </div>
+      <div class="refs">
+        <h3>References</h3>
+        <ul>
+          <li><a href="/api/source?repo=recite-toolbar&amp;path=src%2Fjs%2FRecite.js&amp;start=210&amp;end=210" target="_blank" rel="noopener noreferrer">recite-toolbar/src/js/Recite.js:210-210</a></li><li><a href="/api/source?repo=recite-toolbar&amp;path=src%2Fjs%2FRecite.js&amp;start=418&amp;end=418" target="_blank" rel="noopener noreferrer">recite-toolbar/src/js/Recite.js:418-418</a></li><li><a href="/api/source?repo=recite-toolbar&amp;path=src%2Fjs%2FRecite.js&amp;start=543&amp;end=559" target="_blank" rel="noopener noreferrer">recite-toolbar/src/js/Recite.js:543-559</a></li><li><a href="/api/source?repo=recite-toolbar&amp;path=src%2Fjs%2FRecite%2FPreferences.js&amp;start=68&amp;end=68" target="_blank" rel="noopener noreferrer">recite-toolbar/src/js/Recite/Preferences.js:68-68</a></li><li><a href="/api/source?repo=recite-toolbar&amp;path=src%2Fjs%2FRecite%2FPreferences.js&amp;start=336&amp;end=336" target="_blank" rel="noopener noreferrer">recite-toolbar/src/js/Recite/Preferences.js:336-336</a></li><li><a href="/api/source?repo=recite-toolbar&amp;path=src%2Fjs%2FRecite%2FStorage%2FCookie.js&amp;start=24&amp;end=54" target="_blank" rel="noopener noreferrer">recite-toolbar/src/js/Recite/Storage/Cookie.js:24-54</a></li><li><a href="/api/source?repo=Recite.toolbar.launcher&amp;path=reciteme_toolbar_launcher.js&amp;start=177&amp;end=182" target="_blank" rel="noopener noreferrer">Recite.toolbar.launcher/reciteme_toolbar_launcher.js:177-182</a></li><li><a href="/api/source?repo=Recite.toolbar.launcher&amp;path=reciteme_toolbar_launcher.js&amp;start=209&amp;end=209" target="_blank" rel="noopener noreferrer">Recite.toolbar.launcher/reciteme_toolbar_launcher.js:209-209</a></li>
+        </ul>
+      </div>
+    </div>
+    <footer class="footer-links">
+      <a href="/kb">Back to index</a>
+      <a href="/kb/new">Create KB article</a>
+      <a href="/">Ask something new</a>
+    </footer>
+  </div>
+</body>
+</html>

@@ -124,6 +124,32 @@ def _expand_tokens_for_intent(tokens: list[str], query: str) -> list[str]:
             }
         )
 
+    cookie_terms = (
+        "cookie",
+        "cookies",
+        "persist",
+        "preferences",
+    )
+    toolbar_terms = (
+        "toolbar",
+        "recite",
+    )
+    if any(t in q for t in cookie_terms) and any(t in q for t in toolbar_terms):
+        expanded.update(
+            {
+                "recite",
+                "persist",
+                "preferences",
+                "storage",
+                "localstorage",
+                "cookie",
+                "toolbar",
+                "recitejs",
+                "recite_persist",
+                "recite_preferences",
+            }
+        )
+
     return sorted(expanded)
 
 
@@ -377,6 +403,38 @@ def _intent_boost(item: dict, query: str) -> float:
 
     if "library/Aws/" in rel or "library/Aws_OLD/" in rel:
         boost -= 0.25
+
+    cookie_terms = (
+        "cookie",
+        "cookies",
+        "persist",
+        "preferences",
+    )
+    toolbar_terms = (
+        "toolbar",
+        "recite",
+    )
+    cookie_intent = any(t in q for t in cookie_terms) and any(t in q for t in toolbar_terms)
+    if cookie_intent:
+        if repo == "recite-toolbar":
+            boost += 0.28
+            if rel_lower == "src/js/recite.js":
+                boost += 0.34
+            if rel_lower == "src/js/recite/preferences.js":
+                boost += 0.34
+            if rel_lower == "src/js/recite/storage/cookie.js":
+                boost += 0.34
+            if rel_lower.startswith("src/js/recite/"):
+                boost += 0.16
+        if repo == "Recite.toolbar.launcher":
+            boost += 0.10
+            if "reciteme_toolbar_launcher.js" in rel_lower:
+                boost += 0.18
+        if repo == "recite-api":
+            if rel_lower.startswith("library/"):
+                boost -= 0.46
+            if "guzzlehttp" in rel_lower or "psr/" in rel_lower:
+                boost -= 0.28
 
     return boost
 
