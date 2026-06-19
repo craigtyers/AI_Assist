@@ -1291,7 +1291,7 @@
           if (data.scope_filtered && data.ignored_text) {
             const ignored = String(data.ignored_text).trim();
             const snippet = ignored.length > 140 ? `${ignored.slice(0, 140)}...` : ignored;
-            showScopeNotice(`Ignored non-Recite text and answered only the Recite-support part: "${snippet}"`);
+            showScopeNotice(`Ignored non-Recite text and answered only the Recite-support part. Text ignored: "${snippet}"`);
           }
           lastResponse = {
             question: data.question_used || question,
