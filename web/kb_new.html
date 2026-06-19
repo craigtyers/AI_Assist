@@ -158,7 +158,7 @@
       </div>
       <div class="card">
         <h1>Create KB Article</h1>
-        <p class="muted">Build a structured Knowledge Base article by filling each section.</p>
+        <p class="muted">Build a structured Knowledge Base article by filling each section. On submit, sections are auto-cleaned for grammar, spelling, and KB style.</p>
 
         <div class="grid">
           <div class="field full">
@@ -206,6 +206,7 @@
       const verifyEl = document.getElementById("verify");
       const createBtnEl = document.getElementById("createBtn");
       const statusEl = document.getElementById("status");
+      let sessionInfo = { role: "visitor", role_level: 1, can_submit_kb: false, is_admin: false };
 
       async function post(url, body) {
         const res = await fetch(url, {
@@ -219,6 +220,32 @@
       function setLoading(isLoading) {
         createBtnEl.disabled = isLoading;
         createBtnEl.classList.toggle("loading", isLoading);
+      }
+
+      async function loadSession() {
+        try {
+          const res = await fetch("/api/me", { cache: "no-store" });
+          const data = await res.json();
+          if (data?.ok) {
+            sessionInfo = {
+              role: data.role || "visitor",
+              role_level: Number(data.role_level || 1),
+              can_submit_kb: !!data.can_submit_kb,
+              is_admin: !!data.is_admin,
+            };
+          }
+        } catch {
+          // Keep defaults.
+        }
+        if (!sessionInfo.can_submit_kb) {
+          createBtnEl.disabled = true;
+          statusEl.innerHTML =
+            'KB submission requires user or admin role. Dev switch: <a href="/__dev/role?role=user">user</a> | <a href="/__dev/role?role=admin">admin</a>';
+        } else if (sessionInfo.is_admin) {
+          statusEl.textContent = "Admin mode: new articles publish directly to Knowledge Base.";
+        } else {
+          statusEl.textContent = "User mode: new articles are submitted to KB pending for admin approval.";
+        }
       }
 
       async function createArticle() {
@@ -235,16 +262,28 @@
           statusEl.textContent = "Question is required.";
           return;
         }
+        if (!sessionInfo.can_submit_kb) {
+          statusEl.textContent = "KB submission requires user or admin role.";
+          return;
+        }
 
         setLoading(true);
-        statusEl.textContent = "Creating KB article...";
+        statusEl.textContent = "Cleaning draft and creating KB article...";
         try {
           const data = await post("/api/kb/create-form", payload);
           if (!data.ok) throw new Error(data.error || "Create failed");
 
-          const linkText = data.created ? "Open new article" : "Open existing article";
-          const url = data.url || "/kb";
-          statusEl.innerHTML = `Done. <a href="${url}" target="_blank" rel="noopener noreferrer">${linkText}</a>`;
+          if (data.published && data.url) {
+            const linkText = data.created ? "Open new article" : "Open existing article";
+            const url = data.url || "/kb";
+            statusEl.innerHTML = `Done. <a href="${url}" target="_blank" rel="noopener noreferrer">${linkText}</a>`;
+          } else if (data.pending) {
+            statusEl.textContent = data.created
+              ? "Draft submitted to KB pending (auto-cleaned). An admin must approve before it appears in /kb."
+              : "A matching pending draft already exists.";
+          } else {
+            statusEl.textContent = "KB action completed.";
+          }
         } catch (err) {
           statusEl.textContent = `Error: ${err.message || err}`;
         } finally {
@@ -259,6 +298,7 @@
           await createArticle();
         }
       });
+      loadSession();
     </script>
   </body>
 </html>

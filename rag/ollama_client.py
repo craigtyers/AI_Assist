@@ -86,6 +86,7 @@ def build_rag_prompt(question: str, contexts: list[dict]) -> str:
         "- Recite Me provides an accessibility toolbar for client websites.\n"
         "- The toolbar can be integrated on any website using a client key.\n\n"
         "Response rules:\n"
+        "- If the question is not genuinely about Recite Me support/products/implementation, politely refuse and ask for a Recite-related question.\n"
         "- Use only the provided context. Never invent behavior, APIs, settings, or facts.\n"
         "- If context is missing or ambiguous, explicitly say 'Insufficient evidence in retrieved sources' and state what to verify.\n"
         "- If sources disagree, call out the conflict and do not guess.\n"

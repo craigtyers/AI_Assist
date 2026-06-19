@@ -15,6 +15,7 @@ env/
 # Local runtime/index data
 data/rag.db
 data/*.db
+KB_pending/
 
 # Tooling and OS noise
 .DS_Store

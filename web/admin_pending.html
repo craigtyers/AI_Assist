@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Pending KB</title>
+    <style>
+      :root {
+        --bg: #f1f3f5;
+        --panel: #ffffff;
+        --ink: #16202a;
+        --muted: #5e6b77;
+        --accent: #0b6bcb;
+        --border: #d8dde4;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+      }
+      .wrap {
+        width: min(1100px, 100%);
+        margin: 24px auto;
+        padding: 0 20px;
+      }
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .topbar a {
+        color: #0b6bcb;
+        text-decoration: none;
+        font-weight: 600;
+      }
+      .topbar a:hover {
+        text-decoration: underline;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 18px;
+        box-shadow: 0 10px 24px rgba(22, 32, 42, 0.06);
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+      }
+      .muted {
+        color: var(--muted);
+        margin: 0 0 14px;
+      }
+      .status {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: #fbfcfe;
+        padding: 10px 12px;
+        color: #253443;
+        margin-bottom: 14px;
+      }
+      .list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: grid;
+        gap: 10px;
+      }
+      .item {
+        display: grid;
+        gap: 10px;
+        border: 1px solid #d8dde4;
+        border-radius: 8px;
+        background: #fff;
+        padding: 10px;
+      }
+      .meta {
+        color: #5e6b77;
+        font-size: 12px;
+      }
+      .subhead {
+        margin: 16px 0 8px;
+        font-size: 18px;
+        color: #1f3950;
+      }
+      .item-actions {
+        display: flex;
+        gap: 8px;
+      }
+      .sections {
+        display: grid;
+        gap: 8px;
+      }
+      .section {
+        border: 1px solid #e2e8ef;
+        border-radius: 8px;
+        padding: 8px;
+        background: #f9fcff;
+      }
+      .section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+      .section-title {
+        font-size: 12px;
+        color: #3a556f;
+        font-weight: 700;
+        text-transform: capitalize;
+      }
+      .section-body {
+        margin-top: 6px;
+        color: #22384d;
+        font-size: 13px;
+        white-space: pre-wrap;
+      }
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 8px 12px;
+        background: var(--accent);
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.8;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="topbar">
+        <a href="/">Back to Ask</a>
+        <a href="/kb" target="_blank" rel="noopener noreferrer">Knowledge Base</a>
+      </div>
+      <div class="card">
+        <h1>KB Admin Workflow</h1>
+        <p class="muted">Admin-only queue for reviewing pending drafts and moving published items back to pending.</p>
+        <div id="status" class="status" role="status" aria-live="polite" aria-atomic="true">Loading...</div>
+
+        <h2 class="subhead">Pending Drafts</h2>
+        <ul id="pendingList" class="list"></ul>
+
+        <h2 class="subhead">Published Articles</h2>
+        <ul id="publishedList" class="list"></ul>
+      </div>
+    </div>
+
+    <script>
+      const statusEl = document.getElementById("status");
+      const pendingListEl = document.getElementById("pendingList");
+      const publishedListEl = document.getElementById("publishedList");
+
+      async function post(url, body) {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body || {}),
+        });
+        return await res.json();
+      }
+
+      async function fetchJson(url) {
+        const res = await fetch(url, { cache: "no-store" });
+        const contentType = String(res.headers.get("content-type") || "").toLowerCase();
+        const body = await res.text();
+        if (!contentType.includes("application/json")) {
+          const preview = body.replace(/\s+/g, " ").slice(0, 140);
+          throw new Error(`Expected JSON from ${url} (HTTP ${res.status}) but got ${contentType || "unknown"}: ${preview}`);
+        }
+        try {
+          return JSON.parse(body);
+        } catch (err) {
+          throw new Error(`Invalid JSON from ${url} (HTTP ${res.status}): ${err.message || err}`);
+        }
+      }
+
+      async function loadAdminWorkflow() {
+        statusEl.textContent = "Loading admin workflow data...";
+        try {
+          const me = await fetchJson("/api/me");
+          if (!me?.ok || !me?.is_admin) {
+            statusEl.textContent = "Access denied. Admin role required.";
+            pendingListEl.innerHTML = "";
+            publishedListEl.innerHTML = "";
+            return;
+          }
+          const [pendingData, publishedData] = await Promise.all([
+            fetchJson("/api/kb/pending"),
+            fetchJson("/api/kb/published"),
+          ]);
+          if (!pendingData?.ok) throw new Error(pendingData?.error || "Pending list failed");
+          if (!publishedData?.ok) throw new Error(publishedData?.error || "Published list failed");
+
+          const pendingItems = Array.isArray(pendingData.items) ? pendingData.items : [];
+          const publishedItems = Array.isArray(publishedData.items) ? publishedData.items : [];
+          statusEl.textContent = `Loaded ${pendingItems.length} pending draft(s), ${publishedItems.length} published article(s).`;
+          pendingListEl.innerHTML = "";
+          publishedListEl.innerHTML = "";
+
+          if (!pendingItems.length) {
+            pendingListEl.innerHTML = "<li class='item'>No pending drafts.</li>";
+          }
+          const sectionLabels = {
+            non_technical: "Non-technical",
+            technical: "Technical",
+            recommended_steps: "Recommended steps",
+            what_to_verify: "What to verify",
+          };
+
+          for (const item of pendingItems) {
+            const li = document.createElement("li");
+            li.className = "item";
+
+            const title = document.createElement("div");
+            title.textContent = item.title || item.slug || "(untitled)";
+            const meta = document.createElement("div");
+            meta.className = "meta";
+            meta.textContent = `${item.slug} | ${item.created_at || ""}`;
+            li.appendChild(title);
+            li.appendChild(meta);
+
+            const sectionsWrap = document.createElement("div");
+            sectionsWrap.className = "sections";
+            const sections = item?.sections || {};
+            for (const key of Object.keys(sectionLabels)) {
+              const sec = document.createElement("div");
+              sec.className = "section";
+              const head = document.createElement("div");
+              head.className = "section-head";
+              const secTitle = document.createElement("div");
+              secTitle.className = "section-title";
+              secTitle.textContent = sectionLabels[key];
+              const rewordBtn = document.createElement("button");
+              rewordBtn.type = "button";
+              rewordBtn.textContent = "Reword";
+              const body = document.createElement("div");
+              body.className = "section-body";
+              body.textContent = String(sections[key] || "").trim() || "(empty)";
+              rewordBtn.addEventListener("click", async () => {
+                const steering = window.prompt(
+                  "How should this section be reworded? Example: make it clearer, less threatening, shorter",
+                  "make it clearer"
+                );
+                if (steering === null) return;
+                rewordBtn.disabled = true;
+                const prev = rewordBtn.textContent;
+                rewordBtn.textContent = "Rewording...";
+                try {
+                  const out = await post("/api/kb/pending/rewrite-section", {
+                    slug: item.slug,
+                    section: key,
+                    steering,
+                  });
+                  if (!out?.ok) throw new Error(out?.error || "Rewrite failed");
+                  body.textContent = String(out.text || "").trim() || "(empty)";
+                  statusEl.textContent = `Updated ${sectionLabels[key]} for ${item.slug}.`;
+                } catch (err) {
+                  statusEl.textContent = `Rewrite failed: ${err.message || err}`;
+                } finally {
+                  rewordBtn.disabled = false;
+                  rewordBtn.textContent = prev;
+                }
+              });
+              head.appendChild(secTitle);
+              head.appendChild(rewordBtn);
+              sec.appendChild(head);
+              sec.appendChild(body);
+              sectionsWrap.appendChild(sec);
+            }
+            li.appendChild(sectionsWrap);
+
+            const approveBtn = document.createElement("button");
+            approveBtn.type = "button";
+            approveBtn.textContent = "Approve";
+            approveBtn.addEventListener("click", async () => {
+              approveBtn.disabled = true;
+              try {
+                const out = await post("/api/kb/pending/approve", { slug: item.slug });
+                if (!out?.ok) throw new Error(out?.error || "Approve failed");
+                statusEl.textContent = `Approved ${item.slug}.`;
+                await loadAdminWorkflow();
+              } catch (err) {
+                approveBtn.disabled = false;
+                statusEl.textContent = `Approval failed: ${err.message || err}`;
+              }
+            });
+            const actions = document.createElement("div");
+            actions.className = "item-actions";
+            actions.appendChild(approveBtn);
+            li.appendChild(actions);
+
+            pendingListEl.appendChild(li);
+          }
+
+          if (!publishedItems.length) {
+            publishedListEl.innerHTML = "<li class='item'>No published articles.</li>";
+          }
+
+          for (const item of publishedItems) {
+            const li = document.createElement("li");
+            li.className = "item";
+            const title = document.createElement("div");
+            title.textContent = item.title || item.slug || "(untitled)";
+            const meta = document.createElement("div");
+            meta.className = "meta";
+            meta.textContent = `${item.slug} | created: ${item.created_at || ""}`;
+            li.appendChild(title);
+            li.appendChild(meta);
+
+            const actions = document.createElement("div");
+            actions.className = "item-actions";
+            const unstageBtn = document.createElement("button");
+            unstageBtn.type = "button";
+            unstageBtn.textContent = "Unstage to Pending";
+            unstageBtn.addEventListener("click", async () => {
+              const ok = window.confirm(
+                `Move "${item.slug}" from published KB back to pending?`
+              );
+              if (!ok) return;
+              unstageBtn.disabled = true;
+              try {
+                const out = await post("/api/kb/published/unstage", { slug: item.slug });
+                if (!out?.ok) throw new Error(out?.error || "Unstage failed");
+                statusEl.textContent = `Moved ${item.slug} back to pending.`;
+                await loadAdminWorkflow();
+              } catch (err) {
+                unstageBtn.disabled = false;
+                statusEl.textContent = `Unstage failed: ${err.message || err}`;
+              }
+            });
+            actions.appendChild(unstageBtn);
+            li.appendChild(actions);
+            publishedListEl.appendChild(li);
+          }
+        } catch (err) {
+          statusEl.textContent = `Error: ${err.message || err}`;
+          pendingListEl.innerHTML = "";
+          publishedListEl.innerHTML = "";
+        }
+      }
+
+      loadAdminWorkflow();
+    </script>
+  </body>
+</html>

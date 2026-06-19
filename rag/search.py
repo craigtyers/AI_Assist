@@ -5,6 +5,7 @@ import math
 import re
 import sqlite3
 from dataclasses import asdict, dataclass
+from typing import Iterable
 
 from rag.config import (
     CODE_SOURCE_BOOST,
@@ -169,31 +170,20 @@ def _bm25_candidates(
     fts_query: str,
     limit: int,
     docs_only: bool = False,
+    allowed_repos: set[str] | None = None,
 ) -> list[sqlite3.Row]:
-    if docs_only:
-        return conn.execute(
-            """
-            SELECT
-              c.id,
-              c.repo,
-              c.rel_path,
-              c.start_line,
-              c.end_line,
-              c.content,
-              c.source_type,
-              bm25(chunks_fts) AS bm25_score
-            FROM chunks_fts
-            JOIN chunks c ON c.id = chunks_fts.rowid
-            WHERE chunks_fts MATCH ?
-              AND c.source_type = 'doc'
-            ORDER BY bm25_score
-            LIMIT ?
-            """,
-            (fts_query, int(limit)),
-        ).fetchall()
+    where = ["chunks_fts MATCH ?"]
+    params: list[str | int] = [fts_query]
 
-    return conn.execute(
-        """
+    if docs_only:
+        where.append("c.source_type = 'doc'")
+    if allowed_repos:
+        repo_placeholders = ",".join("?" for _ in allowed_repos)
+        where.append(f"c.repo IN ({repo_placeholders})")
+        params.extend(sorted(allowed_repos))
+
+    params.append(int(limit))
+    query = f"""
         SELECT
           c.id,
           c.repo,
@@ -205,12 +195,11 @@ def _bm25_candidates(
           bm25(chunks_fts) AS bm25_score
         FROM chunks_fts
         JOIN chunks c ON c.id = chunks_fts.rowid
-        WHERE chunks_fts MATCH ?
+        WHERE {" AND ".join(where)}
         ORDER BY bm25_score
         LIMIT ?
-        """,
-        (fts_query, int(limit)),
-    ).fetchall()
+    """
+    return conn.execute(query, params).fetchall()
 
 
 def _embedding_candidates(
@@ -218,6 +207,7 @@ def _embedding_candidates(
     query: str,
     limit: int,
     docs_only: bool = False,
+    allowed_repos: set[str] | None = None,
 ) -> list[dict]:
     if not ENABLE_EMBEDDINGS:
         return []
@@ -227,9 +217,19 @@ def _embedding_candidates(
         return []
     query_vector = query_embeddings[0]
 
+    where: list[str] = []
+    params: list[str | int] = []
     if docs_only:
-        rows = conn.execute(
-            """
+        where.append("c.source_type = 'doc'")
+    if allowed_repos:
+        repo_placeholders = ",".join("?" for _ in allowed_repos)
+        where.append(f"c.repo IN ({repo_placeholders})")
+        params.extend(sorted(allowed_repos))
+
+    where_sql = f"WHERE {' AND '.join(where)}" if where else ""
+    params.append(int(MAX_EMBED_SCAN))
+    rows = conn.execute(
+        f"""
             SELECT
               c.id,
               c.repo,
@@ -241,29 +241,11 @@ def _embedding_candidates(
               e.embedding_json
             FROM chunk_embeddings e
             JOIN chunks c ON c.id = e.chunk_id
-            WHERE c.source_type = 'doc'
+            {where_sql}
             LIMIT ?
-            """,
-            (int(MAX_EMBED_SCAN),),
-        ).fetchall()
-    else:
-        rows = conn.execute(
-            """
-            SELECT
-              c.id,
-              c.repo,
-              c.rel_path,
-              c.start_line,
-              c.end_line,
-              c.content,
-              c.source_type,
-              e.embedding_json
-            FROM chunk_embeddings e
-            JOIN chunks c ON c.id = e.chunk_id
-            LIMIT ?
-            """,
-            (int(MAX_EMBED_SCAN),),
-        ).fetchall()
+        """,
+        params,
+    ).fetchall()
 
     scored: list[dict] = []
     for row in rows:
@@ -454,7 +436,12 @@ def _rerank_score(item: dict, query: str, tokens: list[str]) -> float:
     ) + _intent_boost(item, query)
 
 
-def search_chunks(query: str, k: int = 6, docs_only: bool = False) -> list[SearchHit]:
+def search_chunks(
+    query: str,
+    k: int = 6,
+    docs_only: bool = False,
+    allowed_repos: Iterable[str] | None = None,
+) -> list[SearchHit]:
     query = (query or "").strip()
     if not query:
         return []
@@ -469,11 +456,24 @@ def search_chunks(query: str, k: int = 6, docs_only: bool = False) -> list[Searc
     conn.row_factory = sqlite3.Row
 
     candidate_limit = max(int(k) * 6, RETRIEVAL_CANDIDATES)
-    bm25_rows = _bm25_candidates(conn, fts_query, candidate_limit, docs_only=docs_only)
+    allowed_repo_set = {str(r) for r in (allowed_repos or []) if str(r).strip()} or None
+    bm25_rows = _bm25_candidates(
+        conn,
+        fts_query,
+        candidate_limit,
+        docs_only=docs_only,
+        allowed_repos=allowed_repo_set,
+    )
 
     semantic_rows: list[dict] = []
     try:
-        semantic_rows = _embedding_candidates(conn, query, candidate_limit, docs_only=docs_only)
+        semantic_rows = _embedding_candidates(
+            conn,
+            query,
+            candidate_limit,
+            docs_only=docs_only,
+            allowed_repos=allowed_repo_set,
+        )
     except Exception:
         semantic_rows = []
 

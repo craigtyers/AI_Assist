@@ -70,7 +70,7 @@ DOC_EXTENSIONS = {
 }
 
 EXCLUDED_DIRS = {
-    ".git", "node_modules", "vendor", "dist", "build", "coverage", "tmp", "cache", ".next", ".nuxt", "Aws_OLD",
+    ".git", "node_modules", "vendor", "dist", "build", "coverage", "tmp", "cache", ".next", ".nuxt", "Aws_OLD", "KB_pending",
 }
 
 EXCLUDED_PATH_SUBSTRINGS = [

@@ -6,8 +6,9 @@ ROOT_DIR="$(CDPATH= cd -- "${SCRIPT_DIR}/.." && pwd)"
 
 # Defaults are overrideable: `RAG_HOST=127.0.0.1 ./scripts/start_server.sh`
 export RAG_HOST="${RAG_HOST:-0.0.0.0}"
-export RAG_PORT="${RAG_PORT:-5000}"
+export RAG_PORT="${RAG_PORT:-8088}"
 export RAG_REPO_PATHS="${RAG_REPO_PATHS:-/Users/craigtyers/Projects/AI/toolbar_backend_api/recite-api:/Users/craigtyers/Projects/AI/toolbar_frontend/recite-toolbar:/Users/craigtyers/Projects/AI/toolbar_launcher/Recite.toolbar.launcher}"
+export AUTH_MODE="${AUTH_MODE:-dev}"
 
 cd "$ROOT_DIR"
 
@@ -15,5 +16,6 @@ echo "Starting RAG server with:"
 echo "  RAG_HOST=$RAG_HOST"
 echo "  RAG_PORT=$RAG_PORT"
 echo "  RAG_REPO_PATHS=$RAG_REPO_PATHS"
+echo "  AUTH_MODE=$AUTH_MODE"
 
 exec python3 app.py

@@ -169,6 +169,20 @@
         color: var(--muted);
         margin: 0 0 12px;
       }
+      .role-pill {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid #bfd0e2;
+        background: #eef5fc;
+        color: #1a4163;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .tiny {
+        font-size: 12px;
+      }
       textarea {
         width: 100%;
         min-height: 110px;
@@ -208,6 +222,20 @@
         background: #fbfcfe;
         white-space: pre-wrap;
         line-height: 1.5;
+      }
+      .notice {
+        margin: 10px 0 12px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid #d9e3ee;
+        background: #f4f9ff;
+        color: #1f3650;
+        line-height: 1.5;
+      }
+      .notice.warn {
+        border-color: #e6c57a;
+        background: #fff8e6;
+        color: #4d3a12;
       }
       .result-grid {
         margin-top: 16px;
@@ -378,6 +406,66 @@
       .sources a:hover {
         text-decoration: underline;
       }
+      .admin-panel {
+        border: 1px solid #d9e3ee;
+        border-radius: 10px;
+        background: #f7fbff;
+        padding: 12px;
+      }
+      .admin-panel h4 {
+        margin: 0 0 8px;
+        color: #305a7d;
+      }
+      .admin-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: grid;
+        gap: 8px;
+      }
+      .admin-item {
+        display: grid;
+        gap: 10px;
+        border: 1px solid #d8dde4;
+        border-radius: 8px;
+        background: #fff;
+        padding: 8px;
+      }
+      .admin-item .meta {
+        color: #5e6b77;
+        font-size: 12px;
+      }
+      .admin-item button {
+        padding: 7px 10px;
+      }
+      .pending-sections {
+        display: grid;
+        gap: 8px;
+      }
+      .pending-section {
+        border: 1px solid #e2e8ef;
+        border-radius: 8px;
+        padding: 8px;
+        background: #f9fcff;
+      }
+      .pending-section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+      .pending-section-title {
+        font-size: 12px;
+        color: #3a556f;
+        font-weight: 700;
+        text-transform: capitalize;
+      }
+      .pending-section-body {
+        margin-top: 6px;
+        color: #22384d;
+        font-size: 13px;
+        white-space: pre-wrap;
+      }
       .hidden {
         display: none !important;
       }
@@ -400,7 +488,8 @@
   </head>
   <body>
     <a id="kbCornerLink" class="corner-link corner-top" href="/kb" target="_blank" rel="noopener noreferrer">Knowledge Base</a>
-    <a class="corner-link corner-bottom" id="indexLink">Reindex repos</a>
+    <a id="adminCornerLink" class="corner-link" style="top: 40px; display:none;" href="/admin/pending">Admin Pending</a>
+    <a class="corner-link corner-bottom" id="indexLink" style="display:none;">Reindex repos</a>
 
     <section id="landingView" class="landing">
       <div class="landing-inner">
@@ -419,7 +508,7 @@
             <span class="ask-spinner" aria-hidden="true"></span>
           </button>
         </div>
-        <div id="landingStatus" class="landing-status"></div>
+        <div id="landingStatus" class="landing-status" role="status" aria-live="polite" aria-atomic="true"></div>
       </div>
     </section>
 
@@ -427,9 +516,14 @@
       <div class="card">
         <div class="response-head">
           <h2 class="response-title"><a id="responseTitleLink" href="/">nBERT</a></h2>
-          <a class="kb-inline-link" href="/kb" target="_blank" rel="noopener noreferrer">Knowledge Base</a>
+          <div>
+            <span id="roleBadge" class="role-pill">Role: visitor</span>
+            <a class="kb-inline-link" href="/kb" target="_blank" rel="noopener noreferrer">Knowledge Base</a>
+          </div>
         </div>
         <p class="muted">Ask questions across <code>recite-api</code>, <code>recite-toolbar</code>, and <code>Recite.toolbar.launcher</code>.</p>
+        <p id="roleHint" class="muted tiny"></p>
+        <div id="scopeNotice" class="notice warn hidden" role="alert" aria-live="assertive" aria-atomic="true" tabindex="-1"></div>
 
         <textarea id="question" placeholder="How do I add the toolbar to my website?"></textarea>
         <div class="row">
@@ -443,13 +537,19 @@
           </button>
         </div>
 
-        <div id="status" class="panel">Ready.</div>
+        <div id="status" class="panel" role="status" aria-live="polite" aria-atomic="true">Ready.</div>
         <div id="resultGrid" class="result-grid">
           <div id="answer" class="result-main"></div>
           <aside class="result-side">
             <div class="meta-card">
               <h4>Run Details</h4>
               <p id="timingText">Timing will appear after a response.</p>
+            </div>
+            <div id="adminPanel" class="admin-panel hidden">
+              <h4>Pending KB (Admin)</h4>
+              <ul id="pendingList" class="admin-list">
+                <li>No pending items.</li>
+              </ul>
             </div>
             <h3 class="refs-title">References</h3>
             <ul id="sources" class="sources"><li>...</li></ul>
@@ -472,10 +572,24 @@
       const sourcesEl = document.getElementById("sources");
       const timingTextEl = document.getElementById("timingText");
       const kbCornerLinkEl = document.getElementById("kbCornerLink");
+      const adminCornerLinkEl = document.getElementById("adminCornerLink");
+      const indexLinkEl = document.getElementById("indexLink");
       const landingTitleEl = document.getElementById("landingTitle");
       const landingSubtitleEl = document.getElementById("landingSubtitle");
       const responseTitleLinkEl = document.getElementById("responseTitleLink");
+      const roleBadgeEl = document.getElementById("roleBadge");
+      const roleHintEl = document.getElementById("roleHint");
+      const scopeNoticeEl = document.getElementById("scopeNotice");
+      const adminPanelEl = document.getElementById("adminPanel");
+      const pendingListEl = document.getElementById("pendingList");
       let lastResponse = null;
+      let sessionInfo = {
+        role: "visitor",
+        role_level: 1,
+        can_use_full_repo: false,
+        can_submit_kb: false,
+        is_admin: false,
+      };
       let statusAnimTimer = null;
 
       function normalizeSubtitle(lines) {
@@ -517,10 +631,193 @@
         return !responseViewEl.classList.contains("hidden");
       }
 
+      function clearScopeNotice() {
+        if (!scopeNoticeEl) return;
+        scopeNoticeEl.classList.add("hidden");
+        scopeNoticeEl.textContent = "";
+      }
+
+      function showScopeNotice(message) {
+        if (!scopeNoticeEl) return;
+        scopeNoticeEl.textContent = message;
+        scopeNoticeEl.classList.remove("hidden");
+        scopeNoticeEl.classList.remove("warn");
+        setTimeout(() => scopeNoticeEl.focus(), 0);
+      }
+
+      function showScopeWarning(message) {
+        if (!scopeNoticeEl) return;
+        scopeNoticeEl.textContent = message;
+        scopeNoticeEl.classList.remove("hidden");
+        scopeNoticeEl.classList.add("warn");
+        setTimeout(() => scopeNoticeEl.focus(), 0);
+      }
+
+      function applyRoleUi() {
+        const role = String(sessionInfo?.role || "visitor");
+        if (roleBadgeEl) {
+          roleBadgeEl.textContent = `Role: ${role}`;
+        }
+        if (docsOnlyEl) {
+          const forcedDocsOnly = role === "visitor";
+          docsOnlyEl.checked = forcedDocsOnly ? true : docsOnlyEl.checked;
+          docsOnlyEl.disabled = forcedDocsOnly;
+        }
+        if (roleHintEl) {
+          if (role === "visitor") {
+            roleHintEl.innerHTML =
+              'Visitor mode is active: answers are restricted to public KB content only. Dev switch: <a href="/__dev/role?role=user">user</a> | <a href="/__dev/role?role=admin">admin</a>';
+          } else if (role === "user") {
+            roleHintEl.innerHTML =
+              'User mode is active: full code + docs retrieval enabled. KB article creation submits to pending approval. Dev switch: <a href="/__dev/role?role=visitor">visitor</a> | <a href="/__dev/role?role=admin">admin</a>';
+          } else {
+            roleHintEl.innerHTML =
+              'Admin mode is active: admin controls enabled. Dev switch: <a href="/__dev/role?role=visitor">visitor</a> | <a href="/__dev/role?role=user">user</a>';
+          }
+        }
+        if (adminPanelEl) {
+          adminPanelEl.classList.toggle("hidden", !sessionInfo?.is_admin);
+        }
+        if (adminCornerLinkEl) {
+          adminCornerLinkEl.style.display = sessionInfo?.is_admin ? "inline" : "none";
+        }
+        if (indexLinkEl) {
+          indexLinkEl.style.display = sessionInfo?.is_admin ? "inline" : "none";
+        }
+      }
+
+      async function loadSessionInfo() {
+        try {
+          const res = await fetch("/api/me", { cache: "no-store" });
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data?.ok) {
+            sessionInfo = {
+              role: data.role || "visitor",
+              role_level: Number(data.role_level || 1),
+              can_use_full_repo: !!data.can_use_full_repo,
+              can_submit_kb: !!data.can_submit_kb,
+              is_admin: !!data.is_admin,
+            };
+          }
+        } catch {
+          // Keep defaults.
+        } finally {
+          applyRoleUi();
+        }
+      }
+
+      async function loadPendingForAdmin() {
+        if (!sessionInfo?.is_admin || !pendingListEl) return;
+        try {
+          const res = await fetch("/api/kb/pending", { cache: "no-store" });
+          const data = await res.json();
+          if (!data?.ok) throw new Error(data?.error || "Pending list failed");
+          const items = Array.isArray(data.items) ? data.items : [];
+          if (!items.length) {
+            pendingListEl.innerHTML = "<li>No pending items.</li>";
+            return;
+          }
+          pendingListEl.innerHTML = "";
+          const sectionLabels = {
+            non_technical: "Non-technical",
+            technical: "Technical",
+            recommended_steps: "Recommended steps",
+            what_to_verify: "What to verify",
+          };
+          for (const item of items) {
+            const li = document.createElement("li");
+            li.className = "admin-item";
+            const left = document.createElement("div");
+            const title = document.createElement("div");
+            title.textContent = item.title || item.slug || "(untitled)";
+            const meta = document.createElement("div");
+            meta.className = "meta";
+            meta.textContent = `${item.slug} | ${item.created_at || ""}`;
+            left.appendChild(title);
+            left.appendChild(meta);
+
+            const sectionsWrap = document.createElement("div");
+            sectionsWrap.className = "pending-sections";
+            const itemSections = item?.sections || {};
+            for (const sectionKey of Object.keys(sectionLabels)) {
+              const sec = document.createElement("div");
+              sec.className = "pending-section";
+              const secHead = document.createElement("div");
+              secHead.className = "pending-section-head";
+              const secTitle = document.createElement("div");
+              secTitle.className = "pending-section-title";
+              secTitle.textContent = sectionLabels[sectionKey];
+              const rewordBtn = document.createElement("button");
+              rewordBtn.type = "button";
+              rewordBtn.textContent = "Reword";
+              const secBody = document.createElement("div");
+              secBody.className = "pending-section-body";
+              secBody.textContent = String(itemSections[sectionKey] || "").trim() || "(empty)";
+              rewordBtn.addEventListener("click", async () => {
+                const steering = window.prompt(
+                  `How should this section be reworded?\nExample: make it clearer, less threatening, shorter`,
+                  "make it clearer"
+                );
+                if (steering === null) return;
+                rewordBtn.disabled = true;
+                const prev = rewordBtn.textContent;
+                rewordBtn.textContent = "Rewording...";
+                try {
+                  const result = await post("/api/kb/pending/rewrite-section", {
+                    slug: item.slug,
+                    section: sectionKey,
+                    steering,
+                  });
+                  if (!result?.ok) throw new Error(result?.error || "Rewrite failed");
+                  secBody.textContent = String(result.text || "").trim() || "(empty)";
+                  statusEl.textContent = `Updated ${sectionLabels[sectionKey]} for ${item.slug}.`;
+                } catch (err) {
+                  statusEl.textContent = `Rewrite failed: ${err.message || err}`;
+                } finally {
+                  rewordBtn.disabled = false;
+                  rewordBtn.textContent = prev;
+                }
+              });
+              secHead.appendChild(secTitle);
+              secHead.appendChild(rewordBtn);
+              sec.appendChild(secHead);
+              sec.appendChild(secBody);
+              sectionsWrap.appendChild(sec);
+            }
+
+            const actions = document.createElement("div");
+            const approveBtn = document.createElement("button");
+            approveBtn.type = "button";
+            approveBtn.textContent = "Approve";
+            approveBtn.addEventListener("click", async () => {
+              approveBtn.disabled = true;
+              try {
+                const result = await post("/api/kb/pending/approve", { slug: item.slug });
+                if (!result?.ok) throw new Error(result?.error || "Approve failed");
+                await loadPendingForAdmin();
+              } catch (err) {
+                approveBtn.disabled = false;
+                statusEl.textContent = `Approval failed: ${err.message || err}`;
+              }
+            });
+            actions.appendChild(approveBtn);
+
+            li.appendChild(left);
+            li.appendChild(sectionsWrap);
+            li.appendChild(actions);
+            pendingListEl.appendChild(li);
+          }
+        } catch (err) {
+          pendingListEl.innerHTML = `<li>Error: ${err.message || err}</li>`;
+        }
+      }
+
       function switchToResponseMode(question) {
         landingViewEl.classList.add("hidden");
         responseViewEl.classList.remove("hidden");
         kbCornerLinkEl.classList.add("hidden");
+        if (adminCornerLinkEl) adminCornerLinkEl.classList.add("hidden");
         if (question && !questionEl.value.trim()) {
           questionEl.value = question;
         }
@@ -736,7 +1033,8 @@
         return html.join("");
       }
 
-      function renderAnswer(answerText) {
+      function renderAnswer(answerText, options = {}) {
+        const showFeedback = options.showFeedback !== false;
         answerEl.innerHTML = "";
         const sections = parseSections(answerText);
         for (const s of sections) {
@@ -751,7 +1049,9 @@
           wrap.appendChild(b);
           answerEl.appendChild(wrap);
         }
-        appendFeedbackControls();
+        if (showFeedback) {
+          appendFeedbackControls();
+        }
       }
 
       function renderPlaceholderAnswer() {
@@ -804,18 +1104,24 @@
               const refs = kbRefs();
               const refsText = refs.slice(0, 3).join(", ");
               const extra = refs.length > 3 ? ` (+${refs.length - 3} more)` : "";
-              kbBtn.textContent = "Create article anyway";
-              kbBtn.style.display = "inline-block";
+              if (sessionInfo?.can_submit_kb) {
+                kbBtn.textContent = "Submit article anyway";
+                kbBtn.style.display = "inline-block";
+              }
               msg.textContent = `Thanks, saved. This answer already used KB source(s): ${refsText}${extra}. Create another article anyway?`;
               return;
             }
-            kbBtn.textContent = "Create KB Article";
-            const check = await post("/api/kb/check", { question: lastResponse.question });
-            if (check.ok && !check.exists) {
-              kbBtn.style.display = "inline-block";
-              msg.textContent = "Thanks, saved. You can publish this as a KB article.";
+            kbBtn.textContent = "Submit KB Draft";
+            if (sessionInfo?.can_submit_kb) {
+              const check = await post("/api/kb/check", { question: lastResponse.question });
+              if (check.ok && !check.exists) {
+                kbBtn.style.display = "inline-block";
+                msg.textContent = "Thanks, saved. You can submit this as a pending KB article.";
+              } else {
+                msg.textContent = "Thanks, saved. A KB article for this question already exists.";
+              }
             } else {
-              msg.textContent = "Thanks, saved. A KB article for this question already exists.";
+              msg.textContent = "Thanks, saved.";
             }
           } catch {
             msg.textContent = "Could not save feedback.";
@@ -842,7 +1148,7 @@
         kbBtn.addEventListener("click", async () => {
           if (!lastResponse) return;
           kbBtn.disabled = true;
-          msg.textContent = "Creating KB article...";
+          msg.textContent = "Submitting KB draft...";
           try {
             const res = await post("/api/kb/create", {
               question: lastResponse.question,
@@ -850,7 +1156,7 @@
               sources: lastResponse.sources || [],
             });
             if (!res.ok) throw new Error(res.error || "KB create failed");
-            if (res.url) {
+            if (res.url && res.published) {
               const a = document.createElement("a");
               a.href = res.url;
               a.target = "_blank";
@@ -860,9 +1166,14 @@
               msg.textContent = res.created ? "KB article created." : "KB article already existed.";
               msg.appendChild(a);
             } else {
-              msg.textContent = "KB action completed.";
+              msg.textContent = res.pending
+                ? "KB draft submitted to pending approval and auto-cleaned for KB style."
+                : "KB action completed.";
             }
             kbBtn.style.display = "none";
+            if (sessionInfo?.is_admin) {
+              await loadPendingForAdmin();
+            }
           } catch (err) {
             msg.textContent = `KB create failed: ${err.message || err}`;
             kbBtn.disabled = false;
@@ -937,6 +1248,7 @@
 
         setAskLoading(true, fromLanding);
         startStatusAnimation(retry ? "Retrying with broader retrieval" : "Searching and generating answer", fromLanding);
+        clearScopeNotice();
 
         if (!fromLanding) {
           renderPlaceholderAnswer();
@@ -945,18 +1257,49 @@
         }
 
         try {
-          const docsOnly = inResponseMode() ? !!docsOnlyEl.checked : true;
+          const docsOnly = sessionInfo?.role === "visitor" ? true : inResponseMode() ? !!docsOnlyEl.checked : true;
           const data = await post("/api/chat", { question, k: retry ? 12 : 6, docs_only: docsOnly, retry });
           if (!data.ok) throw new Error(data.error || "Chat failed");
+          if (data.role) {
+            sessionInfo.role = data.role;
+            sessionInfo.role_level = Number(data.role_level || sessionInfo.role_level || 1);
+            sessionInfo.can_use_full_repo = sessionInfo.role_level >= 2;
+            sessionInfo.can_submit_kb = sessionInfo.role_level >= 2;
+            sessionInfo.is_admin = sessionInfo.role === "admin";
+            applyRoleUi();
+          }
 
           switchToResponseMode(question);
+          if (data.out_of_scope) {
+            lastResponse = {
+              question,
+              docs_only: !!data.docs_only,
+              sources: [],
+              answer: data.answer || "",
+            };
+            questionEl.value = question;
+            renderAnswer(data.answer || "(no answer)", { showFeedback: false });
+            timingTextEl.textContent = "Scope check: Not Recite support scope.";
+            sourcesEl.innerHTML = "<li>No sources used. Question rejected by scope check.</li>";
+            showScopeWarning(
+              "This question was not answered because it does not appear to be about Recite Me support, products, or implementation. Please ask a Recite-related question."
+            );
+            stopStatusAnimation("Question rejected: outside Recite scope.", false);
+            landingStatusEl.textContent = "";
+            return;
+          }
+          if (data.scope_filtered && data.ignored_text) {
+            const ignored = String(data.ignored_text).trim();
+            const snippet = ignored.length > 140 ? `${ignored.slice(0, 140)}...` : ignored;
+            showScopeNotice(`Ignored non-Recite text and answered only the Recite-support part: "${snippet}"`);
+          }
           lastResponse = {
-            question,
+            question: data.question_used || question,
             docs_only: !!data.docs_only,
             sources: data.sources || [],
             answer: data.answer || "",
           };
-          questionEl.value = question;
+          questionEl.value = data.question_used || question;
           renderAnswer(data.answer || "(no answer)");
 
           const modeText = data.docs_only ? "Docs only" : "Hybrid";
@@ -1001,6 +1344,9 @@
 
             sourcesEl.appendChild(li);
           }
+          if (sessionInfo?.is_admin) {
+            await loadPendingForAdmin();
+          }
         } catch (err) {
           stopStatusAnimation(`Error: ${err.message}`, fromLanding);
         } finally {
@@ -1037,6 +1383,7 @@
       });
 
       loadRandomBrandProfile();
+      loadSessionInfo().then(loadPendingForAdmin);
       renderPlaceholderAnswer();
     </script>
   </body>
